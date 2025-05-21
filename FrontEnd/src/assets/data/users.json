@@ -1,0 +1,148 @@
+[
+  {
+    "id": 1,
+    "name": "John Smith",
+    "email": "john.smith@example.com",
+    "phone": "+1 555-123-4567",
+    "country": "United States",
+    "subscription": "Platinum",
+    "avatar": "assets/demo/images/avatar/avatar-1.png",
+    "comments": [
+      {
+        "id": 1,
+        "text": "Great customer support. Very responsive and helpful.",
+        "date": "2025-04-22T14:30:00Z",
+        "admin": "Sarah Johnson"
+      },
+      {
+        "id": 2,
+        "text": "Asked about advanced features for the Platinum plan.",
+        "date": "2025-04-25T09:15:00Z",
+        "admin": "Mike Davis"
+      }
+    ]
+  },
+  {
+    "id": 2,
+    "name": "Emma Wilson",
+    "email": "emma.wilson@example.com",
+    "phone": "+44 20 7123 4567",
+    "country": "United Kingdom",
+    "subscription": "Golden",
+    "avatar": "assets/demo/images/avatar/avatar-2.png",
+    "comments": [
+      {
+        "id": 1,
+        "text": "Considering upgrading to Platinum next month.",
+        "date": "2025-04-15T11:45:00Z",
+        "admin": "David Miller"
+      }
+    ]
+  },
+  {
+    "id": 3,
+    "name": "Sophia Chen",
+    "email": "sophia.chen@example.com",
+    "phone": "+65 8123 4567",
+    "country": "Singapore",
+    "subscription": "Master",
+    "avatar": "assets/demo/images/avatar/avatar-3.png",
+    "comments": [
+      {
+        "id": 1,
+        "text": "Very satisfied with all the premium features in Master plan.",
+        "date": "2025-04-18T16:20:00Z",
+        "admin": "Sarah Johnson"
+      },
+      {
+        "id": 2,
+        "text": "Requested additional training on API integration.",
+        "date": "2025-04-27T13:10:00Z",
+        "admin": "Mike Davis"
+      },
+      {
+        "id": 3,
+        "text": "Referred three new customers this month.",
+        "date": "2025-04-29T10:05:00Z",
+        "admin": "David Miller"
+      }
+    ]
+  },
+  {
+    "id": 4,
+    "name": "Ahmed Hassan",
+    "email": "ahmed.hassan@example.com",
+    "phone": "+20 10 1234 5678",
+    "country": "Egypt",
+    "subscription": "Free",
+    "avatar": "assets/demo/images/avatar/avatar-4.png",
+    "comments": []
+  },
+  {
+    "id": 5,
+    "name": "Maria Rodriguez",
+    "email": "maria.rodriguez@example.com",
+    "phone": "+34 612 345 678",
+    "country": "Spain",
+    "subscription": "Golden",
+    "avatar": "assets/demo/images/avatar/avatar-5.png",
+    "comments": [
+      {
+        "id": 1,
+        "text": "Has questions about course availability in Spanish.",
+        "date": "2025-04-20T15:30:00Z",
+        "admin": "Sarah Johnson"
+      }
+    ]
+  },
+  {
+    "id": 6,
+    "name": "Hiroshi Tanaka",
+    "email": "hiroshi.tanaka@example.com",
+    "phone": "+81 90 1234 5678",
+    "country": "Japan",
+    "subscription": "Platinum",
+    "avatar": "assets/demo/images/avatar/avatar-6.png",
+    "comments": [
+      {
+        "id": 1,
+        "text": "Frequently uses API for integration with company systems.",
+        "date": "2025-04-12T09:45:00Z",
+        "admin": "Mike Davis"
+      },
+      {
+        "id": 2,
+        "text": "Provided valuable feedback on dashboard UI.",
+        "date": "2025-04-23T14:15:00Z",
+        "admin": "David Miller"
+      }
+    ]
+  },
+  {
+    "id": 7,
+    "name": "Aisha Patel",
+    "email": "aisha.patel@example.com",
+    "phone": "+91 98765 43210",
+    "country": "India",
+    "subscription": "Free",
+    "avatar": "assets/demo/images/avatar/avatar-7.png",
+    "comments": [
+      {
+        "id": 1,
+        "text": "Interested in Golden plan but had questions about pricing.",
+        "date": "2025-04-28T11:30:00Z",
+        "admin": "Sarah Johnson"
+      }
+    ]
+  },
+  {
+    "id": 8,
+    "name": "Carlos Mendez",
+    "email": "carlos.mendez@example.com",
+    "phone": "+52 55 1234 5678",
+    "country": "Mexico",
+    "subscription": "Golden",
+    "avatar": "assets/demo/images/avatar/avatar-8.png",
+    "comments": []
+  }
+]

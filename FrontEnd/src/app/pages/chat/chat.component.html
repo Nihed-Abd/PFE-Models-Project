@@ -1,0 +1,191 @@
+<div class="chat-container">
+  <!-- Sidebar for conversation history -->
+  <div class="chat-sidebar">
+    <div class="sidebar-header">
+      <h2>Conversations</h2>
+      <button pButton 
+              icon="pi pi-plus" 
+              class="p-button-rounded p-button-outlined" 
+              (click)="newConversation()"
+              pTooltip="New Conversation"></button>
+    </div>
+    
+    <div class="conversation-list">
+      <div *ngIf="conversations.length === 0" class="no-conversations">
+        <p>No conversations yet</p>
+      </div>
+      
+      <div *ngFor="let conversation of conversations" 
+           class="conversation-item" 
+           [class.active]="currentConversationId === conversation.id"
+           (click)="selectConversation(conversation)">
+        <div class="conversation-title">{{ conversation.title || 'Untitled Conversation' }}</div>
+        <div class="conversation-meta">
+          <span class="conversation-date">{{ conversation.timestamp | date:'short' }}</span>
+          <span class="conversation-model" [ngClass]="{'gpt': conversation.model_type.includes('gpt'), 'llama': conversation.model_type.includes('llama')}">
+            {{ conversation.model_type }}
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Main chat area -->
+  <div class="chat-main">
+    <!-- Chat header with model selector -->
+    <div class="chat-header">
+      <div class="conversation-title-container">
+        <h2>{{ currentConversationTitle || 'New Conversation' }}</h2>
+        <span *ngIf="currentConversationId" class="conversation-id">#{{ currentConversationId }}</span>
+        
+        <!-- Evaluation statistics -->
+        <div *ngIf="evaluationStats && !isNewConversation" class="evaluation-stats">
+          <div class="stat-item" *ngIf="evaluationStats.total > 0">
+            <span class="stat-count">{{ evaluationStats.total }}</span>
+            <span class="stat-label">Evaluations</span>
+          </div>
+          <div class="stat-item positive" *ngIf="evaluationStats.jaime > 0">
+            <span class="stat-count">{{ evaluationStats.jaime }}</span>
+            <i class="pi pi-thumbs-up"></i>
+          </div>
+          <div class="stat-item negative" *ngIf="evaluationStats.jenaimepas > 0">
+            <span class="stat-count">{{ evaluationStats.jenaimepas }}</span>
+            <i class="pi pi-thumbs-down"></i>
+          </div>
+          <div class="stat-item comments" *ngIf="evaluationStats.has_comments">
+            <i class="pi pi-comments"></i>
+          </div>
+        </div>
+      </div>
+      
+      <div class="model-selector">
+        <p-dropdown [options]="availableModels" 
+                    [(ngModel)]="selectedModel" 
+                    optionLabel="name"
+                    (onChange)="onModelChange($event)"
+                    [disabled]="isLoading || messages.length > 1"
+                    placeholder="Select Model">
+          <ng-template pTemplate="selectedItem">
+            <div class="model-option">
+              <span>{{ selectedModel.name }}</span>
+            </div>
+          </ng-template>
+          <ng-template let-model pTemplate="item">
+            <div class="model-option">
+              <div>
+                <span class="model-name">{{ model.name }}</span>
+                <span class="model-description">{{ model.description }}</span>
+              </div>
+            </div>
+          </ng-template>
+        </p-dropdown>
+      </div>
+    </div>
+    
+    <!-- Chat messages area -->
+    <div class="chat-messages" #chatContainer>
+      <!-- Loading indicator -->
+      <div *ngIf="loadingMessages" class="loading-messages">
+        <p>Loading conversation...</p>
+      </div>
+      
+      <!-- Messages -->
+      <div *ngFor="let message of messages" class="message-container" [ngClass]="{'user-message': message.sender === 'user', 'ai-message': message.sender === 'assistant'}">
+        <div class="message-avatar">
+          <img [src]="message.avatar" alt="Avatar" />
+        </div>
+        
+        <div class="message-content">
+          <div class="message-header">
+            <span class="message-sender">{{ message.sender === 'user' ? 'You' : 'AI Assistant' }}</span>
+            <span class="message-time">{{ message.timestamp | date:'short' }}</span>
+          </div>
+          
+          <div class="message-text" [innerHTML]="message.content"></div>
+          
+          <!-- Feedback buttons (only for AI messages) -->
+          <div *ngIf="message.sender === 'assistant'" class="message-actions">
+            <div class="feedback-container">
+              <button pButton 
+                      icon="pi pi-thumbs-up" 
+                      class="p-button-rounded p-button-text p-button-sm" 
+                      [ngClass]="{'active-feedback': message.userFeedback === 'jaime'}"
+                      (click)="submitFeedback(message, 'jaime')"
+                      pTooltip="Like this response"></button>
+              <button pButton 
+                      icon="pi pi-thumbs-down" 
+                      class="p-button-rounded p-button-text p-button-sm"
+                      [ngClass]="{'active-feedback': message.userFeedback === 'jenaimepas'}"
+                      (click)="submitFeedback(message, 'jenaimepas')"
+                      pTooltip="Dislike this response"></button>
+              
+              <!-- Evaluation tag -->
+              <span *ngIf="message.userFeedback" class="evaluation-tag" 
+                    [ngClass]="{'positive': message.userFeedback === 'jaime', 'negative': message.userFeedback === 'jenaimepas'}">
+                {{ message.userFeedback === 'jaime' ? 'Helpful' : 'Not Helpful' }}
+              </span>
+            </div>
+          </div>
+          
+          <!-- Admin comment if any -->
+          <div *ngIf="message.adminComment" class="admin-comment">
+            <div class="admin-comment-header">
+              <i class="pi pi-comment"></i>
+              <span>Admin Feedback</span>
+            </div>
+            <p>{{ message.adminComment }}</p>
+          </div>
+        </div>
+      </div>
+      
+      <!-- "AI is typing" indicator -->
+      <div *ngIf="isLoading" class="typing-indicator">
+        <div class="typing-dot"></div>
+        <div class="typing-dot"></div>
+        <div class="typing-dot"></div>
+      </div>
+    </div>
+    
+    <!-- Chat input area -->
+    <div class="chat-footer">
+      <div class="chat-input-container">
+        <textarea 
+          pInputTextarea 
+          [(ngModel)]="newMessage" 
+          placeholder="Type your message here..." 
+          [rows]="1" 
+          [autoResize]="true"
+          #messageInput
+          (keydown.enter)="$event.shiftKey ? null : (sendMessage(), $event.preventDefault())"
+        ></textarea>
+        
+        <!-- File upload button - only for LLAMA model -->
+        <button *ngIf="selectedModel?.value === 'llama'" 
+                pButton 
+                type="button" 
+                icon="pi pi-paperclip" 
+                class="p-button-rounded p-button-text"
+                pTooltip="Upload document"
+                (click)="fileInput.click()">
+        </button>
+        <input 
+          type="file" 
+          #fileInput 
+          style="display: none"
+          (change)="handleFileSelected($event)" 
+          accept=".pdf,.doc,.docx,.txt">
+        
+        <!-- Send button -->
+        <button 
+          pButton 
+          icon="pi pi-send" 
+          [disabled]="isLoading || (!newMessage.trim() && !selectedFile)"
+          (click)="sendMessage()">
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast notifications -->
+<p-toast></p-toast>

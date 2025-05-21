@@ -1,0 +1,303 @@
+<div class="card shadow-sm">
+  <p-toast></p-toast>
+  <p-confirmDialog header="Confirmation" icon="pi pi-exclamation-triangle"></p-confirmDialog>
+  
+  <div class="flex align-items-center justify-content-between mb-4">
+    <div>
+      <h2 class="text-2xl font-bold mb-1">AI Conversation Feedback</h2>
+      <p class="text-slate-600">Monitor and respond to user evaluations</p>
+    </div>
+  </div>
+  
+  <!-- Enhanced Stats summary with icons in a single row -->
+  <div class="stats-container mb-5">
+    <div class="stats-card bg-blue-50 border-left-3 border-blue-500 border-round">
+      <div class="flex align-items-center mb-3">
+        <i class="pi pi-ticket text-blue-500 text-2xl mr-3"></i>
+        <div>
+          <span class="block text-blue-800 font-medium text-sm">TOTAL TICKETS</span>
+          <span class="block text-blue-900 font-bold text-3xl">{{filteredTickets.length}}</span>
+        </div>
+      </div>
+      <p-progressBar [value]="100" styleClass="h-6px" [showValue]="false"></p-progressBar>
+    </div>
+    
+    <div class="stats-card bg-green-50 border-left-3 border-green-500 border-round">
+      <div class="flex align-items-center mb-3">
+        <i class="pi pi-thumbs-up text-green-500 text-2xl mr-3"></i>
+        <div>
+          <span class="block text-green-800 font-medium text-sm">POSITIVE FEEDBACK</span>
+          <span class="block text-green-900 font-bold text-3xl">{{getPositiveFeedbackCount()}}</span>
+        </div>
+      </div>
+      <p-progressBar [value]="getPositiveFeedbackCount() / (filteredTickets.length || 1) * 100" styleClass="h-6px" [showValue]="false" severity="success"></p-progressBar>
+    </div>
+    
+    <div class="stats-card bg-red-50 border-left-3 border-red-500 border-round">
+      <div class="flex align-items-center mb-3">
+        <i class="pi pi-thumbs-down text-red-500 text-2xl mr-3"></i>
+        <div>
+          <span class="block text-red-800 font-medium text-sm">NEGATIVE FEEDBACK</span>
+          <span class="block text-red-900 font-bold text-3xl">{{getNegativeFeedbackCount()}}</span>
+        </div>
+      </div>
+      <p-progressBar [value]="getNegativeFeedbackCount() / (filteredTickets.length || 1) * 100" styleClass="h-6px" [showValue]="false" severity="danger"></p-progressBar>
+    </div>
+    
+    <div class="stats-card bg-yellow-50 border-left-3 border-yellow-500 border-round">
+      <div class="flex align-items-center mb-3">
+        <i class="pi pi-comments text-yellow-500 text-2xl mr-3"></i>
+        <div>
+          <span class="block text-yellow-800 font-medium text-sm">RESPONDED TICKETS</span>
+          <span class="block text-yellow-900 font-bold text-3xl">{{getCommentedTicketsCount()}}</span>
+        </div>
+      </div>
+      <p-progressBar [value]="getCommentedTicketsCount() / (filteredTickets.length || 1) * 100" styleClass="h-6px" [showValue]="false" severity="warning"></p-progressBar>
+    </div>
+  </div>
+  
+  <!-- Enhanced Filters with better styling and dark mode support -->
+  <div class="search-filters-container p-4 border-round mb-4">
+    <div class="flex flex-column md:flex-row gap-3 align-items-center">
+      <div class="flex align-items-center flex-1">
+        <span class="p-input-icon-left w-full search-input-wrapper">
+          <i class="pi pi-search"></i>
+          <input type="text" pInputText [(ngModel)]="filter.searchTerm" 
+                 placeholder="Search by name, email, question or response..." 
+                 (input)="applyFilters()" 
+                 class="w-full p-inputtext-sm" />
+        </span>
+      </div>
+      
+      <div class="flex gap-2 flex-wrap">
+        <p-dropdown 
+          [options]="evaluationOptions" 
+          [(ngModel)]="filter.evaluation" 
+          placeholder="Feedback Type"
+          [showClear]="true"
+          (onChange)="applyFilters()"
+          styleClass="p-inputtext-sm filter-dropdown"
+          panelStyleClass="text-sm">
+          <ng-template pTemplate="selectedItem">
+            <div class="flex align-items-center gap-2" *ngIf="filter.evaluation">
+              <i class="pi" [ngClass]="{
+                'pi-thumbs-up text-green-500 dark:text-green-400': filter.evaluation === 'jaime', 
+                'pi-thumbs-down text-red-500 dark:text-red-400': filter.evaluation === 'jenaimepas'
+              }"></i>
+              <span>{{filter.evaluation === 'jaime' ? 'Positive' : 'Negative'}}</span>
+            </div>
+          </ng-template>
+          <ng-template let-option pTemplate="item">
+            <div class="flex align-items-center gap-2">
+              <i class="pi" [ngClass]="{
+                'pi-thumbs-up text-green-500 dark:text-green-400': option.value === 'jaime', 
+                'pi-thumbs-down text-red-500 dark:text-red-400': option.value === 'jenaimepas'
+              }"></i>
+              <span>{{option.label}}</span>
+            </div>
+          </ng-template>
+        </p-dropdown>
+        
+        <p-button 
+          icon="pi pi-filter-slash" 
+          label="Reset" 
+          severity="secondary" 
+          (onClick)="resetFilters()"
+          [text]="true"
+          styleClass="reset-button"
+          size="small">
+        </p-button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Loading template -->
+  <ng-template #loadingTemplate>
+    <div class="flex flex-column justify-content-center align-items-center" style="height: 400px;">
+      <p-progressSpinner strokeWidth="3" [style]="{width: '50px', height: '50px'}" styleClass="mb-2"></p-progressSpinner>
+      <span class="text-lg text-600">Loading feedback data...</span>
+    </div>
+  </ng-template>
+  
+  <!-- Grid layout for tickets -->
+  <div *ngIf="!loading; else loadingTemplate" class="mt-4">
+    <div *ngIf="filteredTickets.length === 0" class="text-center p-6 bg-gray-50 border-round-lg">
+      <i class="pi pi-inbox text-5xl text-gray-400 mb-3"></i>
+      <p class="text-xl font-medium text-gray-700 mb-2">No feedback tickets found</p>
+      <p class="text-gray-500">Try adjusting your filters or check back later</p>
+    </div>
+    
+    <!-- Grid of cards - two per line -->
+    <div class="tickets-grid">
+      <div *ngFor="let ticket of filteredTickets; let i = index" class="ticket-item">
+        <div class="card-container h-full" [class.flipped]="ticket.flipped" (click)="ticket.flipped = !ticket.flipped">
+          <!-- Front of card -->
+          <div class="card-side front border-round-xl shadow-4 h-full overflow-hidden"
+               [ngClass]="{
+                 'feedback-positive': ticket.evaluation === 'jaime',
+                 'feedback-negative': ticket.evaluation === 'jenaimepas'
+               }">
+            
+            <!-- Card header with evaluation badge -->
+            <div class="card-header flex justify-content-between align-items-center p-3 position-relative">
+              <div class="flex align-items-center gap-2">
+                <div class="feedback-badge" 
+                     [ngClass]="{
+                       'feedback-badge-positive': ticket.evaluation === 'jaime',
+                       'feedback-badge-negative': ticket.evaluation === 'jenaimepas'
+                     }">
+                  <i class="pi" 
+                     [ngClass]="{
+                       'pi-thumbs-up': ticket.evaluation === 'jaime',
+                       'pi-thumbs-down': ticket.evaluation === 'jenaimepas'
+                     }"></i>
+                </div>
+                <span class="font-semibold" 
+                      [ngClass]="{
+                        'text-green-700 dark:text-green-400': ticket.evaluation === 'jaime',
+                        'text-red-700 dark:text-red-400': ticket.evaluation === 'jenaimepas'
+                      }">{{getEvaluationLabel(ticket.evaluation)}}</span>
+              </div>
+              <div class="card-date-display">
+                <i class="pi pi-calendar text-primary dark:text-primary-400"></i>
+                <span>{{formatDate(ticket.created_at)}}</span>
+              </div>
+            </div>
+            
+            <!-- User info -->
+            <div class="user-info p-3 border-y-1 border-300">
+              <div class="flex align-items-center">
+                <p-avatar [image]="ticket.user?.user_avatar || 'assets/user.png'" 
+                          shape="circle" 
+                          size="large" 
+                          [style]="{'background-color': '#2196F3', 'color': '#ffffff'}">
+                </p-avatar>
+                <div class="ml-3">
+                  <h3 class="text-lg font-semibold m-0">{{ticket.user?.name || 'Anonymous User'}}</h3>
+                  <p class="text-sm text-600 m-0 flex align-items-center">
+                    <i class="pi pi-envelope text-primary mr-1"></i>
+                    {{ticket.user?.email || 'No email provided'}}
+                  </p>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Conversation content -->
+            <div class="conversation-content p-3">
+              <!-- User question -->
+              <div class="message-container mb-3">
+                <div class="message-header flex align-items-center mb-2">
+                  <div class="message-icon user-icon">
+                    <i class="pi pi-user"></i>
+                  </div>
+                  <h4 class="font-medium text-sm text-700 m-0">User Question</h4>
+                </div>
+                <div class="message-content user-message p-3 border-round">
+                  <div class="line-clamp-3">
+                    {{ticket.question}}
+                  </div>
+                </div>
+              </div>
+              
+              <!-- AI response -->
+              <div class="message-container mb-3">
+                <div class="message-header flex align-items-center mb-2">
+                  <div class="message-icon ai-icon">
+                    <i class="pi pi-comment"></i>
+                  </div>
+                  <h4 class="font-medium text-sm text-700 m-0">AI Response</h4>
+                </div>
+                <div class="message-content ai-message p-3 border-round"
+                     [ngClass]="{
+                       'ai-message-positive': ticket.evaluation === 'jaime',
+                       'ai-message-negative': ticket.evaluation === 'jenaimepas'
+                     }">
+                  <div class="line-clamp-3">
+                    {{ticket.response}}
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Admin comment if exists -->
+              <div *ngIf="ticket.commentaire_admin" class="message-container mb-3">
+                <div class="message-header flex align-items-center mb-2">
+                  <div class="message-icon admin-icon">
+                    <i class="pi pi-reply"></i>
+                  </div>
+                  <h4 class="font-medium text-sm text-700 m-0">Admin Comment</h4>
+                </div>
+                <div class="message-content admin-message p-3 border-round">
+                  <div class="line-clamp-3">
+                    {{ticket.commentaire_admin}}
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Card footer -->
+            <div class="card-footer p-3 flex justify-content-between align-items-center">
+             
+              <!-- Only show Add Comment button if no admin comment exists -->
+              <p-button *ngIf="!ticket.commentaire_admin"
+                icon="pi pi-comments" 
+                label="Add Comment" 
+                (onClick)="$event.stopPropagation(); ticket.flipped = true" 
+                styleClass="p-button-rounded p-button-primary"
+                size="small">
+              </p-button>
+              <!-- Show a badge for commented tickets -->
+              <div *ngIf="ticket.commentaire_admin" class="commented-badge flex align-items-center">
+                <i class="pi pi-check-circle text-success mr-1"></i>
+                <span class="text-sm text-success">Commented</span>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Back of card -->
+          <div class="card-side back border-round-xl shadow-4 h-full overflow-hidden">
+            <!-- Card header -->
+            <div class="card-header flex justify-content-between align-items-center p-3">
+              <div class="flex align-items-center gap-2">
+                <div class="comment-badge">
+                  <i class="pi pi-comments"></i>
+                </div>
+                <h3 class="m-0 text-lg font-semibold">Add Your Comment</h3>
+              </div>
+              <p-button 
+                icon="pi pi-arrow-left" 
+                (onClick)="$event.stopPropagation(); ticket.flipped = false" 
+                styleClass="p-button-rounded p-button-text p-button-secondary"
+                size="small"
+                pTooltip="Back to ticket"
+                tooltipPosition="left">
+              </p-button>
+            </div>
+            
+            <!-- Admin comment form -->
+            <div class="comment-form p-3" (click)="$event.stopPropagation()">
+              <div class="mb-3">
+                <label for="comment" class="block text-sm font-medium text-700 mb-2 flex align-items-center">
+                  <i class="pi pi-pencil text-primary mr-2"></i>
+                  Your Response:
+                </label>
+                <textarea id="comment" pInputTextarea [rows]="6" 
+                          [(ngModel)]="ticket.newComment" 
+                          placeholder="Enter your feedback or comment here..."
+                          class="w-full comment-textarea"></textarea>
+              </div>
+              
+              <div class="submit-container flex justify-content-end">
+                <p-button label="Submit Comment" 
+                          icon="pi pi-send" 
+                          [disabled]="!ticket.newComment?.trim()"
+                          (onClick)="$event.stopPropagation(); addResponse(ticket)"
+                          styleClass="p-button-primary submit-button">
+                </p-button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

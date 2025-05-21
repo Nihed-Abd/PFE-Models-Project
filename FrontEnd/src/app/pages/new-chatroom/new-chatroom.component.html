@@ -1,0 +1,244 @@
+<div class="flex flex-col h-full bg-slate-50 dark:bg-slate-900">
+  <!-- Chat Header -->
+  <div class="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 p-4 shadow-sm">
+    <div class="flex items-center justify-between">
+      <div class="flex items-center">
+        <h2 class="text-xl font-semibold text-slate-800 dark:text-white m-0">
+          <span *ngIf="currentConversationTitle">{{ currentConversationTitle }}</span>
+          <span *ngIf="!currentConversationTitle">New Conversation</span>
+        </h2>
+        <p-tag *ngIf="isNewConversation" severity="info" value="New" class="ml-2"></p-tag>
+      </div>
+      
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <!-- Left side controls -->
+        <div class="flex items-center gap-2">
+          <!-- Model Selection Dropdown -->
+          <span class="text-sm text-slate-500 dark:text-slate-400 mr-1">Model:</span>
+          <p-dropdown 
+            [options]="availableModels" 
+            [(ngModel)]="selectedModel" 
+            optionLabel="name"
+            [disabled]="isLoading"
+            styleClass="dropdown-sm"
+            [pTooltip]="selectedModel.description"
+            tooltipPosition="bottom"
+          ></p-dropdown>
+        </div>
+        
+      </div>
+    </div>
+  </div>
+  
+  <!-- Message Container -->
+  <div #messageContainer class="flex-1 p-4 overflow-y-auto" style="max-height: calc(100vh - 160px);">
+    <div class="container mx-auto max-w-4xl">
+      <!-- Messages List -->
+      <div class="space-y-4">
+        <div 
+          *ngFor="let message of messages" 
+          class="flex items-start gap-3" 
+          [ngClass]="{'justify-end': message.sender === 'user'}"
+          [@fadeIn]
+        >
+          <!-- User/AI Avatar -->
+          <div *ngIf="message.sender !== 'user'" class="flex-shrink-0">
+            <p-avatar 
+              [image]="message.avatar" 
+              shape="circle" 
+              size="large"
+              [style]="{'width': '40px', 'height': '40px'}"
+            ></p-avatar>
+          </div>
+          
+          <!-- Message Content -->
+          <div 
+            class="rounded-lg p-3 shadow-sm max-w-[80%] relative"
+            [ngClass]="{
+              'bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700': message.sender !== 'user',
+              'bg-blue-500 text-white': message.sender === 'user'
+            }"
+          >
+            <!-- Message Text -->
+            <div class="whitespace-pre-wrap">
+              <p 
+                [innerHTML]="message.content" 
+                class="text-sm md:text-base leading-relaxed"
+              ></p>
+            </div>
+            
+            <!-- Category Tag or Timestamp for AI Messages -->
+            <div *ngIf="message.sender !== 'user'" class="flex items-center mt-2 space-x-2">
+              <!-- Category Tag -->
+              <p-tag 
+                *ngIf="message.category" 
+                [value]="message.category" 
+                [severity]="message.category === 'Error' ? 'danger' : 'info'"
+                [rounded]="true"
+                class="text-xs"
+              ></p-tag>
+              
+              <!-- Evaluation Tag -->
+              <p-tag 
+                *ngIf="message.userFeedback" 
+                [value]="'Evaluated'" 
+                severity="success"
+                [rounded]="true"
+                class="text-xs ml-2"
+              ></p-tag>
+              <span class="text-xs text-slate-500">{{ message.timestamp | date:'short' }}</span>
+              
+              <!-- Feedback buttons for AI messages -->
+              <div class="flex items-center space-x-2 ml-auto">
+                <!-- Like button with enhanced styling -->
+                <button 
+                  type="button" 
+                  class="focus:outline-none transition-colors duration-200"
+                  [ngClass]="{
+                    'text-emerald-500': message.userFeedback === 'jaime',
+                    'text-slate-500 hover:text-emerald-500': message.userFeedback !== 'jaime'
+                  }"
+                  (click)="submitFeedback(message, 'jaime')"
+                  [pTooltip]="message.userFeedback === 'jaime' ? 'You found this response helpful' : 'This response was helpful'"
+                  tooltipPosition="top"
+                >
+                  <i class="pi pi-thumbs-up text-sm" [ngClass]="{'font-bold': message.userFeedback === 'jaime'}"></i>
+                </button>
+                
+                <!-- Dislike button with enhanced styling -->
+                <button 
+                  type="button" 
+                  class="focus:outline-none transition-colors duration-200"
+                  [ngClass]="{
+                    'text-rose-500': message.userFeedback === 'jenaimepas',
+                    'text-slate-500 hover:text-rose-500': message.userFeedback !== 'jenaimepas'
+                  }"
+                  (click)="submitFeedback(message, 'jenaimepas')"
+                  [pTooltip]="message.userFeedback === 'jenaimepas' ? 'You found this response not helpful' : 'This response was not helpful'"
+                  tooltipPosition="top"
+                >
+                  <i class="pi pi-thumbs-down text-sm" [ngClass]="{'font-bold': message.userFeedback === 'jenaimepas'}"></i>
+                </button>
+              </div>
+            </div>
+            
+            <!-- Timestamp for User Messages -->
+            <div *ngIf="message.sender === 'user'" class="flex justify-end mt-1">
+              <span class="text-xs text-blue-200">{{ message.timestamp | date:'short' }}</span>
+            </div>
+            
+            <!-- Admin feedback (if available) -->
+            <div 
+              *ngIf="message.adminComment"
+              class="mt-2 p-2 bg-amber-50 dark:bg-amber-900 text-amber-800 dark:text-amber-100 rounded-md text-xs"
+            >
+              <div class="font-semibold mb-1">Admin Response:</div>
+              <p>{{ message.adminComment }}</p>
+            </div>
+          </div>
+          
+          <!-- User Avatar -->
+          <div *ngIf="message.sender === 'user'" class="flex-shrink-0">
+            <p-avatar 
+              [image]="message.avatar" 
+              shape="circle" 
+              size="large"
+              [style]="{'width': '40px', 'height': '40px'}"
+            ></p-avatar>
+          </div>
+        </div>
+        
+        <!-- Loading Indicator - Improved version with timeout -->
+        <div *ngIf="isLoading" class="flex items-start gap-3 animate-pulse">
+          <div class="flex-shrink-0">
+            <p-avatar 
+              image="assets/Aicon.jpg" 
+              shape="circle" 
+              size="large"
+              [style]="{'width': '40px', 'height': '40px'}"
+            ></p-avatar>
+          </div>
+          <div class="bg-white dark:bg-slate-800 rounded-lg p-3 shadow-sm border border-slate-200 dark:border-slate-700 flex items-center max-w-3xl">
+            <p-progressSpinner 
+              styleClass="w-5 h-5 mr-2"
+              strokeWidth="4"
+              fill="transparent"
+              animationDuration=".7s"
+            ></p-progressSpinner>
+            <span class="text-sm text-slate-600 dark:text-slate-300">AI is processing your message...</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Message Input -->
+  <div class="bg-white dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 p-4 shadow-sm">
+    <div class="container mx-auto max-w-4xl">
+      <div class="flex items-end gap-2">
+        <!-- Text Input -->
+        <div class="flex-1 relative">
+          <textarea
+            #messageInput
+            pInputTextarea
+            [(ngModel)]="newMessage"
+            (keydown.enter)="handleEnterKey($event)"
+            placeholder="Type your message here... (Shift+Enter for new line)"
+            class="w-full p-3 rounded-lg resize-none border border-slate-300 dark:border-slate-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:bg-slate-700 dark:text-white"
+            [rows]="3"
+            [disabled]="isLoading"
+            autoResize="true"
+          ></textarea>
+          <div class="absolute bottom-2 right-2 flex items-center gap-2">
+            <!-- File Attachment Button -->
+            <button
+              type="button"
+              class="text-slate-500 hover:text-blue-500 focus:outline-none transition-colors duration-200"
+              [pTooltip]="'Attach File'"
+              tooltipPosition="top"
+              [disabled]="isLoading"
+              (click)="fileInput.click()"
+            >
+              <i class="pi pi-paperclip"></i>
+              <input
+                #fileInput
+                type="file"
+                class="hidden"
+                (change)="handleFileSelected($event)"
+              />
+            </button>
+          </div>
+        </div>
+        
+        <!-- Send Button -->
+        <button
+          pButton
+          pRipple
+          icon="pi pi-send"
+          class="p-button-rounded"
+          [disabled]="isLoading || (!newMessage.trim() && !selectedFile)"
+          (click)="sendMessage()"
+        ></button>
+      </div>
+      
+      <!-- Selected File Preview -->
+      <div *ngIf="selectedFile" class="mt-2 flex items-center gap-2 p-2 bg-blue-50 dark:bg-blue-900 rounded-md">
+        <i class="pi pi-file text-blue-500 dark:text-blue-300"></i>
+        <div class="text-sm text-blue-700 dark:text-blue-200">{{ selectedFile.name }}</div>
+        <button
+          type="button"
+          class="text-blue-500 hover:text-blue-800 dark:text-blue-300 dark:hover:text-blue-100 focus:outline-none"
+          (click)="selectedFile = null"
+        >
+          <i class="pi pi-times"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Toast Messages -->
+  <p-toast position="top-right"></p-toast>
+  
+  <!-- Confirmation Dialog -->
+  <p-confirmDialog [style]="{width: '450px'}" [baseZIndex]="10000"></p-confirmDialog>
+</div>

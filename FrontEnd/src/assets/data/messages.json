@@ -1,0 +1,92 @@
+[
+  {
+    "id": 1,
+    "sender": "User",
+    "content": "Hello, I have a question about the subscription plans.",
+    "timestamp": "2025-04-30T10:15:00Z",
+    "likes": 2,
+    "dislikes": 0,
+    "attachments": []
+  },
+  {
+    "id": 2,
+    "sender": "Assistant",
+    "content": "Hi there! I'd be happy to help with your subscription plans question. We currently offer four plans: Free, Golden, Platinum, and Master. Each plan has different features and benefits. What specific information would you like to know?",
+    "timestamp": "2025-04-30T10:15:30Z",
+    "likes": 5,
+    "dislikes": 1,
+    "attachments": []
+  },
+  {
+    "id": 3,
+    "sender": "User",
+    "content": "What's the difference between the Golden and Platinum plans?",
+    "timestamp": "2025-04-30T10:16:15Z",
+    "likes": 0,
+    "dislikes": 0,
+    "attachments": []
+  },
+  {
+    "id": 4,
+    "sender": "Assistant",
+    "content": "Great question! The Golden plan includes access to basic courses, standard support, and 10 API calls per day. The Platinum plan offers everything in Golden plus access to advanced courses, priority support, 50 API calls per day, and access to our premium tools. Platinum members also receive monthly one-on-one consultation sessions.",
+    "timestamp": "2025-04-30T10:16:45Z",
+    "likes": 8,
+    "dislikes": 0,
+    "attachments": []
+  },
+  {
+    "id": 5,
+    "sender": "User",
+    "content": "That sounds great. Can I upgrade from Golden to Platinum later?",
+    "timestamp": "2025-04-30T10:17:30Z",
+    "likes": 3,
+    "dislikes": 0,
+    "attachments": []
+  },
+  {
+    "id": 6,
+    "sender": "Assistant",
+    "content": "Absolutely! You can upgrade your subscription at any time. When you upgrade, you'll only pay the prorated difference for the remainder of your billing cycle. Your new benefits will be available immediately after upgrading.",
+    "timestamp": "2025-04-30T10:18:00Z",
+    "likes": 10,
+    "dislikes": 1,
+    "attachments": []
+  },
+  {
+    "id": 7,
+    "sender": "User",
+    "content": "Perfect! I'll start with Golden and see how it goes. One more question - do you offer any discounts for annual subscriptions?",
+    "timestamp": "2025-04-30T10:19:15Z",
+    "likes": 5,
+    "dislikes": 0,
+    "attachments": []
+  },
+  {
+    "id": 8,
+    "sender": "Assistant",
+    "content": "Yes, we do offer discounts for annual subscriptions! You'll receive a 20% discount when choosing an annual billing cycle compared to the monthly option. This applies to all our paid plans: Golden, Platinum, and Master.",
+    "timestamp": "2025-04-30T10:19:45Z",
+    "likes": 12,
+    "dislikes": 0,
+    "attachments": []
+  },
+  {
+    "id": 9,
+    "sender": "User",
+    "content": "That's excellent. Thanks for the information!",
+    "timestamp": "2025-04-30T10:20:30Z",
+    "likes": 1,
+    "dislikes": 0,
+    "attachments": []
+  },
+  {
+    "id": 10,
+    "sender": "Assistant",
+    "content": "You're very welcome! If you have any other questions about our subscription plans or anything else, please don't hesitate to ask. I'm here to help you get the most out of our platform. Have a wonderful day!",
+    "timestamp": "2025-04-30T10:21:00Z",
+    "likes": 7,
+    "dislikes": 0,
+    "attachments": []
+  }
+]

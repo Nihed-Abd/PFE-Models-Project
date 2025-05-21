@@ -1,0 +1,105 @@
+{
+  "users": {
+    "total": 245,
+    "bySubscription": {
+      "Free": 98,
+      "Golden": 82,
+      "Platinum": 45,
+      "Master": 20
+    },
+    "newThisMonth": 32,
+    "growth": 12.5,
+    "activeToday": 78
+  },
+  "chats": {
+    "total": 1452,
+    "avgDuration": "8m 30s",
+    "avgMessagesPerChat": 12.3,
+    "satisfactionRate": 92.7,
+    "topTopics": [
+      {
+        "name": "Subscription Plans",
+        "count": 412
+      },
+      {
+        "name": "Technical Support",
+        "count": 275
+      },
+      {
+        "name": "Course Access",
+        "count": 256
+      },
+      {
+        "name": "API Usage",
+        "count": 180
+      },
+      {
+        "name": "Billing Issues",
+        "count": 98
+      }
+    ],
+    "weeklyActivity": [
+      { "day": "Monday", "count": 245 },
+      { "day": "Tuesday", "count": 256 },
+      { "day": "Wednesday", "count": 278 },
+      { "day": "Thursday", "count": 230 },
+      { "day": "Friday", "count": 210 },
+      { "day": "Saturday", "count": 123 },
+      { "day": "Sunday", "count": 110 }
+    ]
+  },
+  "comments": {
+    "total": 523,
+    "pendingReview": 18,
+    "avgReplyTime": "3h 15m",
+    "byAdmin": [
+      {
+        "name": "Sarah Johnson",
+        "count": 205
+      },
+      {
+        "name": "Mike Davis",
+        "count": 178
+      },
+      {
+        "name": "David Miller",
+        "count": 140
+      }
+    ]
+  },
+  "aiUsage": {
+    "totalTokens": 3250000,
+    "costThisMonth": "$325.00",
+    "avgTokensPerChat": 2240,
+    "peakHours": [
+      { "hour": "09:00", "usage": 12.5 },
+      { "hour": "10:00", "usage": 15.2 },
+      { "hour": "11:00", "usage": 14.8 },
+      { "hour": "12:00", "usage": 10.3 },
+      { "hour": "13:00", "usage": 8.7 },
+      { "hour": "14:00", "usage": 11.4 },
+      { "hour": "15:00", "usage": 13.8 },
+      { "hour": "16:00", "usage": 12.9 },
+      { "hour": "17:00", "usage": 9.5 },
+      { "hour": "18:00", "usage": 7.2 }
+    ],
+    "modelDistribution": [
+      {
+        "model": "GPT-4",
+        "percentage": 35
+      },
+      {
+        "model": "GPT-3.5",
+        "percentage": 45
+      },
+      {
+        "model": "Claude",
+        "percentage": 15
+      },
+      {
+        "model": "Other",
+        "percentage": 5
+      }
+    ]
+  }
+}
