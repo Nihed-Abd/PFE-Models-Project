@@ -24,66 +24,29 @@ model = AutoModelForCausalLM.from_pretrained(
 @app.route('/predict', methods=['POST'])
 def predict():
     data = request.get_json()
-    
-    # Handle both 'prompt' and 'question' fields to make the API more flexible
-    prompt_text = data.get("prompt", "") or data.get("question", "")
-    model_type = data.get("model", "gpt2")  # Default to gpt2 if not specified
-    
-    print(f"Received request with prompt: {prompt_text[:30]}... and model: {model_type}")
-    
-    # Check if input is empty
-    if not prompt_text or prompt_text.strip() == "":
-        return jsonify({"error": "Empty prompt or question"}), 400
-        
-    try:
-        # Tokenize the input
-        inputs = tokenizer(prompt_text, return_tensors="pt")
-        
-        # Check if input_ids is empty
-        if inputs["input_ids"].shape[1] == 0:
-            return jsonify({"error": "Empty input after tokenization"}), 400
-            
-        # Generate response
-        outputs = model.generate(
-            inputs["input_ids"],
-            max_length=100,
-            num_return_sequences=1,
-            do_sample=True,
-            top_k=50,
-            top_p=0.95,
-            temperature=0.8,
-            pad_token_id=tokenizer.eos_token_id  # Set pad_token_id explicitly
-        )
+    prompt_text = data.get("prompt", "")
 
-        full_text = tokenizer.decode(outputs[0], skip_special_tokens=True)
+    inputs = tokenizer(prompt_text, return_tensors="pt")
+    outputs = model.generate(
+        inputs["input_ids"],
+        max_length=100,
+        num_return_sequences=1,
+        do_sample=True,
+        top_k=50,
+        top_p=0.95,
+        temperature=0.8
+    )
 
-        # Option 1: Si tu formules tes prompts comme "C'est quoi un ERP ? Réponse : ..."
-        if "Réponse :" in full_text:
-            response = full_text.split("Réponse :")[-1].strip()
-        else:
-            # Fallback si "Réponse :" n'est pas trouvé
-            response = full_text[len(prompt_text):].strip()
-            if not response:  # If response is empty, return the full text
-                response = full_text
+    full_text = tokenizer.decode(outputs[0], skip_special_tokens=True)
 
-        print(f"Generated response: {response[:50]}...")
-        
-        # Return response in a format compatible with the frontend
-        response_data = {
-            "response": response,
-            "model": model_type,
-            "status": "success"
-        }
-        
-        return jsonify(response_data)
-        
-    except Exception as e:
-        error_msg = f"Error generating response: {str(e)}"
-        print(error_msg)
-        return jsonify({
-            "error": error_msg,
-            "status": "error"
-        }), 500
+    # Option 1: Si tu formules tes prompts comme "C'est quoi un ERP ? Réponse : ..."
+    if "Réponse :" in full_text:
+        response = full_text.split("Réponse :")[-1].strip()
+    else:
+        # Fallback si "Réponse :" n’est pas trouvé
+        response = full_text[len(prompt_text):].strip()
+
+    return jsonify({"response": response})
 
 @app.route('/health', methods=['GET'])
 def health_check():

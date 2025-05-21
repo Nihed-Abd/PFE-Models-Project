@@ -314,9 +314,8 @@ export class ChatComponent implements OnInit {
     
     if (this.selectedModel.value === 'gpt2') {
       // Use the /predict endpoint for GPT-2 model
-      apiEndpoint = environment.predictApi;
-      requestData = { prompt: userMessage.content, model: 'gpt2' };
-      console.log('Sending request to:', apiEndpoint, 'with data:', requestData);
+      apiEndpoint = 'http://localhost:5004/predict';
+      requestData = { text: userMessage.content };
     } else if (this.selectedModel.value === 'llama') {
       apiEndpoint = `${environment.apiUrl}/chat`;
       requestData = { message: userMessage.content };
