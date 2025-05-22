@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\TicketChatController;
 use App\Http\Controllers\Api\GoogleController;
 use App\Http\Controllers\Api\ConversationController;
 use App\Http\Controllers\Api\DashboardController;
+use App\Http\Controllers\Api\FineTunedController;
 
 // Routes d'authentification publiques
 Route::prefix('auth')->controller(AuthController::class)->group(function () {
@@ -32,9 +33,12 @@ Route::middleware('auth:api')->group(function () {
     Route::get('ticketchat/{id}', [TicketChatController::class, 'show']);
     Route::get('ticketchat/evaluations/{userId}', [TicketChatController::class, 'countEvaluationsByConversation']);
 //llama3.2 model - For backward compatibility
-    Route::post('/chat', [LlamaController::class, 'handle']);
+    Route::post('/llama/chat', [LlamaController::class, 'handle']);
     Route::post('/upload-file', [LlamaController::class, 'upload']);
     Route::get('/history', [LlamaController::class, 'history']);
+    
+    // Fine-tuned model
+    Route::post('/fine-tuned/chat', [FineTunedController::class, 'chat']);
     
     // Conversation Management
     Route::get('/chat-history', [ConversationController::class, 'getChatHistory']);

@@ -6,7 +6,7 @@
     "phone": "+1 555-123-4567",
     "country": "United States",
     "subscription": "Platinum",
-    "avatar": "assets/demo/images/avatar/avatar-1.png",
+    "avatar": "assets/user.png",
     "comments": [
       {
         "id": 1,

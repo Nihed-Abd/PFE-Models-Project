@@ -14,6 +14,8 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { ConversationService } from '../../services/conversation.service';
 import { AuthService } from '../../services/auth.service';
 import { environment } from '../../../environments/environment';
+import { TooltipModule } from 'primeng/tooltip';
+// Component imports
 
 interface Message {
   id: number;
@@ -48,7 +50,8 @@ interface AIModel {
     AvatarModule,
     CardModule,
     DropdownModule,
-    ToastModule
+    ToastModule,
+    TooltipModule
   ],
   templateUrl: './chat.component.html',
   styleUrls: ['./chat.component.css'],

@@ -24,6 +24,19 @@
             [pTooltip]="selectedModel.description"
             tooltipPosition="bottom"
           ></p-dropdown>
+          
+          <!-- Save to PDF Button -->
+          <button
+            pButton
+            pRipple
+            icon="pi pi-file-pdf"
+            label="Enregistrer en PDF"
+            class="p-button-danger ml-3"
+            [disabled]="isLoading"
+            (click)="saveToPdf()"
+            pTooltip="Télécharger la conversation en PDF"
+            tooltipPosition="bottom"
+          ></button>
         </div>
         
       </div>
@@ -31,7 +44,10 @@
   </div>
   
   <!-- Message Container -->
-  <div #messageContainer class="flex-1 p-4 overflow-y-auto" style="max-height: calc(100vh - 160px);">
+  <div #messageContainer class="flex-1 p-4 overflow-y-auto relative" style="max-height: calc(100vh - 160px);">
+    <!-- Floating Action Button for PDF Export -->
+    
+    
     <div class="container mx-auto max-w-4xl">
       <!-- Messages List -->
       <div class="space-y-4">

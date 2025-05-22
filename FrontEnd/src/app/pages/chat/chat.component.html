@@ -1,18 +1,22 @@
+
+
 <div class="chat-container">
   <!-- Sidebar for conversation history -->
   <div class="chat-sidebar">
     <div class="sidebar-header">
       <h2>Conversations</h2>
-      <button pButton 
-              icon="pi pi-plus" 
-              class="p-button-rounded p-button-outlined" 
-              (click)="newConversation()"
-              pTooltip="New Conversation"></button>
+      <div class="sidebar-actions">
+        <button pButton 
+                icon="pi pi-plus" 
+                class="p-button-rounded p-button-outlined" 
+                (click)="newConversation()"
+                pTooltip="Nouvelle Conversation"></button>
+      </div>
     </div>
     
     <div class="conversation-list">
       <div *ngIf="conversations.length === 0" class="no-conversations">
-        <p>No conversations yet</p>
+        <p>Aucune conversation</p>
       </div>
       
       <div *ngFor="let conversation of conversations" 
@@ -28,43 +32,34 @@
         </div>
       </div>
     </div>
+    
+    <!-- Sidebar footer -->
+    <div class="sidebar-footer">
+      <!-- Footer content if needed -->
+    </div>
   </div>
   
   <!-- Main chat area -->
   <div class="chat-main">
+    <!-- Main chat area content -->
+
     <!-- Chat header with model selector -->
     <div class="chat-header">
       <div class="conversation-title-container">
-        <h2>{{ currentConversationTitle || 'New Conversation' }}</h2>
+        <h2>{{ currentConversationTitle || 'Nouvelle Conversation' }}</h2>
         <span *ngIf="currentConversationId" class="conversation-id">#{{ currentConversationId }}</span>
-        
-        <!-- Evaluation statistics -->
-        <div *ngIf="evaluationStats && !isNewConversation" class="evaluation-stats">
-          <div class="stat-item" *ngIf="evaluationStats.total > 0">
-            <span class="stat-count">{{ evaluationStats.total }}</span>
-            <span class="stat-label">Evaluations</span>
-          </div>
-          <div class="stat-item positive" *ngIf="evaluationStats.jaime > 0">
-            <span class="stat-count">{{ evaluationStats.jaime }}</span>
-            <i class="pi pi-thumbs-up"></i>
-          </div>
-          <div class="stat-item negative" *ngIf="evaluationStats.jenaimepas > 0">
-            <span class="stat-count">{{ evaluationStats.jenaimepas }}</span>
-            <i class="pi pi-thumbs-down"></i>
-          </div>
-          <div class="stat-item comments" *ngIf="evaluationStats.has_comments">
-            <i class="pi pi-comments"></i>
-          </div>
-        </div>
       </div>
       
+
+      
+      <!-- Model selector -->
       <div class="model-selector">
         <p-dropdown [options]="availableModels" 
                     [(ngModel)]="selectedModel" 
                     optionLabel="name"
                     (onChange)="onModelChange($event)"
                     [disabled]="isLoading || messages.length > 1"
-                    placeholder="Select Model">
+                    placeholder="Sélectionner un modèle">
           <ng-template pTemplate="selectedItem">
             <div class="model-option">
               <span>{{ selectedModel.name }}</span>
@@ -80,13 +75,32 @@
           </ng-template>
         </p-dropdown>
       </div>
+      
+      <!-- Evaluation statistics -->
+      <div *ngIf="evaluationStats && !isNewConversation" class="evaluation-stats">
+        <div class="stat-item" *ngIf="evaluationStats.total > 0">
+          <span class="stat-count">{{ evaluationStats.total }}</span>
+          <span class="stat-label">Évaluations</span>
+        </div>
+        <div class="stat-item positive" *ngIf="evaluationStats.jaime > 0">
+          <span class="stat-count">{{ evaluationStats.jaime }}</span>
+          <i class="pi pi-thumbs-up"></i>
+        </div>
+        <div class="stat-item negative" *ngIf="evaluationStats.jenaimepas > 0">
+          <span class="stat-count">{{ evaluationStats.jenaimepas }}</span>
+          <i class="pi pi-thumbs-down"></i>
+        </div>
+        <div class="stat-item comments" *ngIf="evaluationStats.has_comments">
+          <i class="pi pi-comments"></i>
+        </div>
+      </div>
     </div>
     
     <!-- Chat messages area -->
     <div class="chat-messages" #chatContainer>
       <!-- Loading indicator -->
       <div *ngIf="loadingMessages" class="loading-messages">
-        <p>Loading conversation...</p>
+        <p>Chargement de la conversation...</p>
       </div>
       
       <!-- Messages -->
@@ -97,7 +111,7 @@
         
         <div class="message-content">
           <div class="message-header">
-            <span class="message-sender">{{ message.sender === 'user' ? 'You' : 'AI Assistant' }}</span>
+            <span class="message-sender">{{ message.sender === 'user' ? 'Vous' : 'Assistant IA' }}</span>
             <span class="message-time">{{ message.timestamp | date:'short' }}</span>
           </div>
           
@@ -111,18 +125,18 @@
                       class="p-button-rounded p-button-text p-button-sm" 
                       [ngClass]="{'active-feedback': message.userFeedback === 'jaime'}"
                       (click)="submitFeedback(message, 'jaime')"
-                      pTooltip="Like this response"></button>
+                      pTooltip="J'aime cette réponse"></button>
               <button pButton 
                       icon="pi pi-thumbs-down" 
                       class="p-button-rounded p-button-text p-button-sm"
                       [ngClass]="{'active-feedback': message.userFeedback === 'jenaimepas'}"
                       (click)="submitFeedback(message, 'jenaimepas')"
-                      pTooltip="Dislike this response"></button>
+                      pTooltip="Je n'aime pas cette réponse"></button>
               
               <!-- Evaluation tag -->
               <span *ngIf="message.userFeedback" class="evaluation-tag" 
                     [ngClass]="{'positive': message.userFeedback === 'jaime', 'negative': message.userFeedback === 'jenaimepas'}">
-                {{ message.userFeedback === 'jaime' ? 'Helpful' : 'Not Helpful' }}
+                {{ message.userFeedback === 'jaime' ? 'Utile' : 'Pas Utile' }}
               </span>
             </div>
           </div>
@@ -131,7 +145,7 @@
           <div *ngIf="message.adminComment" class="admin-comment">
             <div class="admin-comment-header">
               <i class="pi pi-comment"></i>
-              <span>Admin Feedback</span>
+              <span>Commentaire Admin</span>
             </div>
             <p>{{ message.adminComment }}</p>
           </div>
@@ -152,7 +166,7 @@
         <textarea 
           pInputTextarea 
           [(ngModel)]="newMessage" 
-          placeholder="Type your message here..." 
+          placeholder="Tapez votre message ici..." 
           [rows]="1" 
           [autoResize]="true"
           #messageInput
@@ -165,7 +179,7 @@
                 type="button" 
                 icon="pi pi-paperclip" 
                 class="p-button-rounded p-button-text"
-                pTooltip="Upload document"
+                pTooltip="Télécharger un document"
                 (click)="fileInput.click()">
         </button>
         <input 

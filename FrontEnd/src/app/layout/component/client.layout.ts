@@ -74,7 +74,7 @@ import { ProgressSpinnerModule } from 'primeng/progressspinner';
                 
                 <div>
                     <p-avatar 
-                        [image]="currentUser?.avatar || 'assets/demo/images/avatar/avatar-1.png'" 
+                        [image]="currentUser?.avatar || 'assets/user.png'" 
                         shape="circle" 
                         [style]="{ cursor: 'pointer' }"
                         (click)="userMenu.toggle($event)"
@@ -208,7 +208,7 @@ import { ProgressSpinnerModule } from 'primeng/progressspinner';
             
             <div class="flex flex-col items-center p-4">
                 <p-avatar 
-                    [image]="currentUser?.avatar || 'assets/demo/images/avatar/avatar-1.png'" 
+                    [image]="currentUser?.avatar || 'assets/user.png'" 
                     size="xlarge" 
                     shape="circle"
                     class="mb-4 border-4 border-primary-100">

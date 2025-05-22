@@ -25,6 +25,7 @@ import { CalendarModule } from 'primeng/calendar';
 import { TooltipModule } from 'primeng/tooltip';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
+// Component imports
 
 interface Conversation {
   id: number;
@@ -239,13 +240,14 @@ interface ChatFilter {
                   <p-tag [value]="conversation.model_type" [severity]="getModelSeverity(conversation.model_type)"></p-tag>
                   <span class="text-sm text-500">{{ conversation.timestamp | date:'medium' }}</span>
                 </div>
-                <div>
+                <div class="flex gap-1">
                   <p-button 
                     [icon]="conversation.is_saved ? 'pi pi-bookmark-fill' : 'pi pi-bookmark'" 
                     styleClass="p-button-rounded p-button-text" 
                     [ngClass]="{'text-yellow-500': conversation.is_saved}"
                     (click)="toggleSaveConversation(conversation)">
                   </p-button>
+                  <!-- PDF export button removed -->
                 </div>
               </div>
             </ng-template>
@@ -485,4 +487,6 @@ export class ChatHistoryComponent implements OnInit {
       default: return 'secondary';
     }
   }
+  
+  // Method removed - PDF export functionality moved to new-chatroom component
 }

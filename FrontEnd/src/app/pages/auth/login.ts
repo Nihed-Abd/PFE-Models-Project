@@ -145,12 +145,16 @@ export class Login implements OnInit {
         this.authService.login(this.email, this.password).subscribe({
             next: (response) => {
                 this.loading = false;
-                if (response && response.access_token) {
+                // Check for various token formats that might be in the response
+                if (response && (response.access_token || response.token || 
+                    (response.data && (response.data.accessToken || response.data.token)))) {
                     this.showSuccessViaToast('Login successful');
                     setTimeout(() => {
                         this.redirectBasedOnRole();
                     }, 1500);
                 } else {
+                    // Only show error if no token format is found
+                    console.log('Login response missing token:', response);
                     this.showErrorViaSwal('Invalid response from server');
                 }
             },

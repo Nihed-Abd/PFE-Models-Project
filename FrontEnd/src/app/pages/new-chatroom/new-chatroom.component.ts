@@ -24,6 +24,9 @@ import { InputSwitchModule } from 'primeng/inputswitch';
 import { AuthService } from '../../services/auth.service';
 import { ConversationService, Conversation, TicketChat } from '../../services/conversation.service';
 import { environment } from '../../../environments/environment';
+// PDF generation imports
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 interface Message {
   id: number;
@@ -110,9 +113,8 @@ export class NewChatroomComponent implements OnInit {
 
   // AI Models
   availableModels: AIModel[] = [
-    { name: 'GPT-2', value: 'gpt2', available: true, description: 'Efficient general-purpose model' },
+    { name: 'Fine-tuned Model', value: 'Fine-tuned', available: true, description: 'Efficient general-purpose model' },
     { name: 'Llama 2', value: 'llama', available: true, description: 'Advanced open-source model' },
-    { name: 'Fine-tuned Model', value: 'finetuned', available: false, description: 'Domain-specific model (coming soon)' }
   ];
   selectedModel: AIModel = this.availableModels[0];
   
@@ -731,6 +733,186 @@ export class NewChatroomComponent implements OnInit {
       }, 1000);
     }
   }
+  
+  // Handle AI response logic based on selected model
+  private handleAIResponse(question: string): void {
+    // Show loading indicator while waiting for AI response
+    this.isLoading = true;
+    
+    // Get authentication token
+    const token = localStorage.getItem('token');
+    
+    // Prepare headers with authentication token
+    const headers = {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    };
+    
+    // Choose API endpoint and prepare request data based on selected model
+    if (this.selectedModel.value === 'Fine-tuned') {
+      // Fine-tuned model using backend API
+      const apiUrl = environment.fineTunedApi;
+      const requestData = {
+        prompt: question + " Réponse :"
+      };
+      
+      console.log('Sending request to Fine-tuned model:', apiUrl, requestData);
+      
+      // Make the HTTP request to the Fine-tuned API with auth headers
+      this.http.post(apiUrl, requestData, { headers }).subscribe({
+        next: (response: any) => {
+          console.log('Received Fine-tuned model response:', response);
+          
+          // Extract the response content
+          const botResponse = response.response || 'No response received';
+          
+          // Create AI response object to display in UI
+          const aiResponse: AIResponse = {
+            predicted_category: botResponse,
+            question: question
+          };
+          
+          // Add AI response to messages UI
+          this.addAIResponse(aiResponse);
+          
+          // Handle saving based on whether this is a new conversation or existing one
+          setTimeout(() => {
+            if (this.currentConversationId) {
+              // If we have an existing conversation, add this message to it
+              this.addMessageToExistingConversation(question, botResponse);
+            } else {
+              // If this is a new conversation, save it
+              this.saveCurrentChat();
+            }
+          }, 500);
+        },
+        error: (error: any) => {
+          console.error('Error getting AI response from Fine-tuned model:', error);
+          this.handleApiError(error);
+        }
+      });
+    } else if (this.selectedModel.value === 'llama') {
+      // Llama model using backend API
+      const apiUrl = environment.llamaApi;
+      const requestData = {
+        prompt: question
+      };
+      
+      console.log('Sending request to Llama model:', apiUrl, requestData);
+      
+      // Make the HTTP request to the Llama API with auth headers
+      this.http.post(apiUrl, requestData, { headers }).subscribe({
+        next: (response: any) => {
+          console.log('Received Llama model response:', response);
+          
+          // Extract the response from the backend format
+          const botResponse = response.response || 'No response received';
+          
+          // Create AI response object to display in UI
+          const aiResponse: AIResponse = {
+            predicted_category: botResponse,
+            question: question
+          };
+          
+          // Add AI response to messages UI
+          this.addAIResponse(aiResponse);
+          
+          // Handle saving based on whether this is a new conversation or existing one
+          setTimeout(() => {
+            if (this.currentConversationId) {
+              // If we have an existing conversation, add this message to it
+              this.addMessageToExistingConversation(question, botResponse);
+            } else {
+              // If this is a new conversation, save it
+              this.saveCurrentChat();
+            }
+          }, 500);
+        },
+        error: (error: any) => {
+          console.error('Error getting AI response from Llama model:', error);
+          this.handleApiError(error);
+        }
+      });
+    } else {
+      // Unknown model type
+      this.handleApiError(new Error('Unknown model type: ' + this.selectedModel.value));
+    }
+  }
+  
+  // Handle API error responses - NOTE: This method should NOT be duplicated!
+  private handleApiError(error: any): void {
+    console.error('Error getting AI response:', error);
+    
+    // Add error message
+    const errorMessage: Message = {
+      id: this.messages.length + 1,
+      sender: 'assistant',
+      content: 'Sorry, I encountered an error while processing your request. Please try again later.',
+      timestamp: new Date().toISOString(),
+      likes: 0,
+      dislikes: 0,
+      avatar: 'assets/Aicon.jpg',
+      category: 'Error'
+    };
+    
+    this.messages.push(errorMessage);
+    this.isLoading = false;
+    
+    // Scroll to bottom
+    setTimeout(() => this.scrollToBottom(), 100);
+    
+    // Show error toast
+    this.messageService.add({
+      severity: 'error',
+      summary: 'AI Error',
+      detail: 'Failed to get AI response: ' + (error.message || 'Unknown error')
+    });
+  }
+  
+  // Add AI response to messages - NOTE: This method should NOT be duplicated!
+  private addAIResponse(response: AIResponse): void {
+    // Create AI message object with the correct response content
+    const aiMessage: Message = {
+      id: this.messages.length + 1,
+      sender: 'assistant',
+      content: response.predicted_category, // Use the predicted category as the response
+      timestamp: new Date().toISOString(),
+      likes: 0,
+      dislikes: 0,
+      avatar: 'assets/Aicon.jpg',
+      category: response.predicted_category
+    };
+    
+    // Add to messages array
+    this.messages.push(aiMessage);
+    
+    // Clear loading state
+    this.isLoading = false;
+    
+    // Scroll to show the new message
+    setTimeout(() => this.scrollToBottom(), 100);
+  }
+  
+  // Ajouter un nouveau message à une conversation existante
+  private addMessageToExistingConversation(userMessage: string, botMessage: string): void {
+    console.log('Adding new message to conversation:', this.currentConversationId);
+    
+    this.conversationService.addMessageToConversation(
+      this.currentConversationId!, 
+      userMessage, 
+      botMessage
+    ).subscribe({
+      next: (response: any) => {
+        console.log('Message added successfully to conversation:', response);
+        this.lastSavedMessageCount = this.messages.length;
+      },
+      error: (error: any) => {
+        console.error('Error adding message to conversation:', error);
+        // Fallback to saving the entire conversation
+        this.saveCurrentChat();
+      }
+    });
+  }
 
   // Format and truncate text to create a title
   private truncateTitle(content: string): string {
@@ -753,167 +935,40 @@ export class NewChatroomComponent implements OnInit {
     return truncated + '...';
   }
   
-  // Format conversation title to handle JSON strings
+  // Format conversation title to handle nested JSON strings
   private formatConversationTitle(title: string): string {
     if (!title) return 'New Conversation';
     
-    try {
-      // Check if the title is a JSON string
-      if (title.startsWith('["') || title.startsWith('{') || title.startsWith('[')) {
-        // Try to parse the JSON string
-        const parsed = JSON.parse(title);
-        
-        // If it's an array, take the first element
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          return this.cleanTitle(String(parsed[0]));
+    // Function to recursively clean JSON strings
+    const cleanJsonString = (input: any): string => {
+      if (typeof input === 'string') {
+        // Try to parse inner JSON string
+        try {
+          const parsed = JSON.parse(input);
+          return cleanJsonString(parsed);
+        } catch (e) {
+          // Clean up escape characters and quotes
+          return input.replace(/\\|\"|\[|\]/g, '');
         }
-        
-        // If it's an object or other type, convert to string
-        return this.cleanTitle(String(parsed));
-      }
-      
-      // If not a JSON string, just clean and return
-      return this.cleanTitle(title);
-    } catch (e) {
-      // If JSON parsing fails, just return the original string cleaned up
-      return this.cleanTitle(title);
-    }
-  }
-  
-  // Helper to clean titles by removing JSON syntax and escape characters
-  private cleanTitle(title: string): string {
-    if (!title) return 'New Conversation';
-    
-    // Remove any JSON syntax or escape characters
-    return title
-      .replace(/\\n/g, ' ')
-      .replace(/\\r/g, ' ')
-      .replace(/\\t/g, ' ')
-      .replace(/\\'/g, "'")
-      .replace(/\\\"/g, '"')
-      .replace(/\\\//g, '/')
-      .replace(/^"(.*)"$/, '$1') // Remove surrounding quotes
-      .trim();
-  }
-
-  // Handle AI response logic
-  private handleAIResponse(question: string): void {
-    // Show loading indicator while waiting for AI response
-    this.isLoading = true;
-  
-    // Prepare request data
-    const requestData = {
-      question: question,
-      model: this.selectedModel.value
-    };
-  
-    // Call API to get AI response
-    const apiUrl = environment.predictApi;
-  
-    console.log('Sending request to:', apiUrl, requestData);
-  
-    // Make the HTTP request to the AI API
-    this.http.post<AIResponse>(apiUrl, requestData)
-      .subscribe({
-        next: (response) => {
-          console.log('Received AI response:', response);
-          
-          // Récupérer la réponse réelle du bot (prédiction/catégorie)
-          const botResponse = response.predicted_category;
-          const userQuestion = response.question;
-          
-          // Add AI response to messages UI
-          this.addAIResponse(response);
-  
-          // Handle saving based on whether this is a new conversation or existing one
-          setTimeout(() => {
-            if (this.currentConversationId) {
-              // If we have an existing conversation, add this message to it
-              this.addMessageToExistingConversation(userQuestion, botResponse);
-            } else {
-              // If this is a new conversation, save it
-              this.saveCurrentChat();
-            }
-          }, 500);
-        },
-        error: (error) => {
-          console.error('Error getting AI response:', error);
-          
-          // Add error message
-          const errorMessage: Message = {
-            id: this.messages.length + 1,
-            sender: 'assistant',
-            content: 'Sorry, I encountered an error while processing your request. Please try again later.',
-            timestamp: new Date().toISOString(),
-            likes: 0,
-            dislikes: 0,
-            avatar: 'assets/Aicon.jpg',
-            category: 'Error'
-          };
-          
-          this.messages.push(errorMessage);
-          this.isLoading = false;
-          
-          // Scroll to bottom
-          setTimeout(() => this.scrollToBottom(), 100);
-          
-          // Show error toast
-          this.messageService.add({
-            severity: 'error',
-            summary: 'AI Error',
-            detail: 'Failed to get AI response'
-          });
+      } else if (Array.isArray(input)) {
+        // Handle arrays by processing the first item
+        if (input.length > 0) {
+          return cleanJsonString(input[0]);
         }
-      });
-  }
-  
-  // Ajouter un nouveau message à une conversation existante
-  private addMessageToExistingConversation(userMessage: string, botMessage: string): void {
-    console.log('Adding new message to conversation:', this.currentConversationId);
-    
-    this.conversationService.addMessageToConversation(
-      this.currentConversationId!, 
-      userMessage, 
-      botMessage
-    ).subscribe({
-      next: (response) => {
-        console.log('Message added successfully to conversation:', response);
-        this.lastSavedMessageCount = this.messages.length;
-      },
-      error: (error) => {
-        console.error('Error adding message to conversation:', error);
-        // Fallback to saving the entire conversation
-        this.saveCurrentChat();
+        return '';
+      } else if (input && typeof input === 'object') {
+        // Handle objects by stringifying them
+        return JSON.stringify(input);
       }
-    });
-  }
-
-  // Add AI response to messages
-  private addAIResponse(response: AIResponse): void {
-    // Create AI message object with the correct response content
-    const aiMessage: Message = {
-      id: this.messages.length + 1,
-      sender: 'assistant',
-      content: response.predicted_category, // Use the predicted category as the response
-      timestamp: new Date().toISOString(),
-      likes: 0,
-      dislikes: 0,
-      avatar: 'assets/Aicon.jpg',
-      category: response.predicted_category
+      return String(input);
     };
     
-    // Add to messages array
-    this.messages.push(aiMessage);
-    
-    // Clear loading state
-    this.isLoading = false;
-    
-    // Scroll to show the new message
-    setTimeout(() => this.scrollToBottom(), 100);
-    
-    // Don't trigger auto-save here - it will be handled by the calling method
-    // to prevent duplicate saves
+    // Process the title
+    const cleanedTitle = cleanJsonString(title);
+    return this.truncateTitle(cleanedTitle);
   }
+  
+
 
   // Handle enter key to send message
   handleEnterKey(event: Event): void {
@@ -1014,6 +1069,238 @@ export class NewChatroomComponent implements OnInit {
             detail: 'Failed to submit feedback'
           });
         }
+      });
+    }
+  }
+  
+  // Generate and download a PDF of the conversation
+  saveToPdf(): void {
+    if (!this.currentConversationId && this.messages.length === 0) {
+      this.messageService.add({
+        severity: 'info',
+        summary: 'Information',
+        detail: 'Veuillez d\'abord envoyer un message pour créer une conversation'
+      });
+      return;
+    }
+    
+    // If we have messages but no conversation ID, save the conversation first
+    if (!this.currentConversationId && this.messages.length > 0) {
+      this.saveCurrentChat();
+      setTimeout(() => this.saveToPdf(), 1000); // Try again after saving
+      return;
+    }
+    
+    // Show loading notification
+    this.messageService.add({
+      severity: 'info',
+      summary: 'Traitement',
+      detail: 'Génération du PDF...'
+    });
+    
+    try {
+      // Create a new PDF document
+      const doc = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
+      });
+      
+      // Add title and metadata
+      const title = this.currentConversationTitle || 'Nouvelle Conversation';
+      const date = new Date().toLocaleDateString();
+      const time = new Date().toLocaleTimeString();
+      
+      // Set document properties
+      doc.setProperties({
+        title: `Conversation - ${title}`,
+        subject: 'Export de Conversation IA',
+        author: 'AI Chat Models',
+        keywords: 'chat, conversation, ia, export',
+        creator: 'AI Chat Models'
+      });
+      
+      // Define brand colors
+      const brandPrimary = [41, 98, 255];       // #2962FF - Primary blue
+      const brandSecondary = [25, 118, 210];    // #1976D2 - Secondary blue
+      const brandDark = [38, 50, 56];           // #263238 - Dark slate
+      const brandLight = [236, 239, 241];       // #ECEFF1 - Light gray
+      const brandAccent = [245, 124, 0];        // #F57C00 - Orange accent
+      const brandSuccess = [76, 175, 80];       // #4CAF50 - Success green
+      const brandError = [211, 47, 47];         // #D32F2F - Error red
+      
+      // Add logo in top right
+      const logoPath = 'assets/logo.png';
+      const logoWidth = 40; // mm
+      const logoHeight = 15; // mm
+      const logoX = doc.internal.pageSize.getWidth() - logoWidth - 20; // 20mm from right edge
+      const logoY = 10; // 10mm from top
+      
+      // Add the logo as an image
+      doc.addImage(logoPath, 'PNG', logoX, logoY, logoWidth, logoHeight);
+      
+      // Add header with brand colors
+      doc.setFontSize(24);
+      doc.setTextColor(brandPrimary[0], brandPrimary[1], brandPrimary[2]); // Brand primary color
+      doc.setFont('helvetica', 'bold');
+      doc.text(`Conversation: ${title}`, 20, 25);
+      
+      // Add conversation ID and date
+      doc.setFontSize(12);
+      doc.setTextColor(brandDark[0], brandDark[1], brandDark[2]); // Brand dark color
+      doc.setFont('helvetica', 'normal');
+      doc.text(`ID: #${this.currentConversationId || 'Nouvelle'} | Exporté le: ${date} à ${time}`, 20, 35);
+      
+      // Add model information
+      doc.text(`Modèle: ${this.selectedModel.name}`, 20, 42);
+      
+      // Add a separator line with brand color
+      doc.setDrawColor(brandSecondary[0], brandSecondary[1], brandSecondary[2]); // Brand secondary color
+      doc.setLineWidth(0.5);
+      doc.line(20, 46, 190, 46);
+      
+      let yPosition = 55; // Starting Y position for messages
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const margin = 20;
+      const contentWidth = pageWidth - (margin * 2);
+      
+      // Process each message
+      for (const message of this.messages) {
+        // Check if we need a new page
+        if (yPosition > 250) {
+          doc.addPage();
+          yPosition = 30;
+          
+          // Add logo to each page
+          doc.addImage(logoPath, 'PNG', logoX, logoY, logoWidth, logoHeight);
+          
+          // Add a separator line on each new page
+          doc.setDrawColor(brandSecondary[0], brandSecondary[1], brandSecondary[2]);
+          doc.line(20, 25, 190, 25);
+        }
+        
+        // Set colors based on sender
+        if (message.sender === 'user') {
+          // User message - light blue background
+          doc.setFillColor(225, 245, 254); // Light blue (#E1F5FE)
+          doc.setTextColor(25, 118, 210); // Medium blue for user name (#1976D2)
+        } else {
+          // AI message - light gray background
+          doc.setFillColor(245, 245, 245); // Light gray (#F5F5F5)
+          doc.setTextColor(38, 50, 56); // Dark slate for AI name (#263238)
+        }
+        
+        // Add sender label with brand colors
+        doc.setFontSize(11);
+        doc.setFont('helvetica', 'bold');
+        const senderLabel = message.sender === 'user' ? 'Vous' : 'Assistant IA';
+        doc.text(senderLabel, margin, yPosition);
+        
+        // Add timestamp
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(120, 120, 120); // Gray for timestamp
+        const timestamp = new Date(message.timestamp).toLocaleString();
+        const timestampWidth = doc.getTextWidth(timestamp);
+        doc.text(timestamp, pageWidth - margin - timestampWidth, yPosition);
+        
+        yPosition += 5;
+        
+        // Process message content - handle line breaks and formatting
+        doc.setFontSize(10);
+        
+        // Strip HTML tags for PDF content
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = message.content;
+        const textContent = tempDiv.textContent || tempDiv.innerText || '';
+        
+        // Split text into lines that fit within the content width
+        const textLines = doc.splitTextToSize(textContent, contentWidth);
+        
+        // Calculate text height
+        const textHeight = textLines.length * 5 + 10; // Calculate height based on number of lines
+        
+        // Draw message background with rounded corners and subtle shadow effect
+        doc.setDrawColor(200, 200, 200); // Border color
+        doc.roundedRect(margin - 5, yPosition - 3, contentWidth + 10, textHeight, 3, 3, 'FD');
+        
+        // Add text content with appropriate color
+        if (message.sender === 'user') {
+          doc.setTextColor(0, 0, 0); // Black text for user messages
+        } else {
+          doc.setTextColor(0, 0, 0); // Black text for AI messages
+        }
+        doc.setFont('helvetica', 'normal');
+        doc.text(textLines, margin, yPosition + 5);
+        
+        // Move Y position for next message
+        yPosition += textHeight + 10;
+        
+        // Add feedback information if available with brand colors
+        if (message.sender === 'assistant' && message.userFeedback) {
+          doc.setFontSize(9);
+          
+          if (message.userFeedback === 'jaime') {
+            doc.setTextColor(brandSuccess[0], brandSuccess[1], brandSuccess[2]); // Success green
+            const feedbackText = `Évaluation: Utile ✓`;
+            doc.text(feedbackText, margin, yPosition);
+          } else {
+            doc.setTextColor(brandError[0], brandError[1], brandError[2]); // Error red
+            const feedbackText = `Évaluation: Pas Utile ✗`;
+            doc.text(feedbackText, margin, yPosition);
+          }
+          
+          yPosition += 5;
+        }
+        
+        // Add admin comment if available with brand accent color
+        if (message.adminComment) {
+          doc.setFontSize(9);
+          doc.setTextColor(brandAccent[0], brandAccent[1], brandAccent[2]); // Brand accent color
+          doc.setFont('helvetica', 'italic');
+          doc.text('Commentaire Admin:', margin, yPosition);
+          yPosition += 5;
+          
+          const commentLines = doc.splitTextToSize(message.adminComment, contentWidth - 10);
+          doc.text(commentLines, margin + 5, yPosition);
+          yPosition += commentLines.length * 5 + 5;
+        }
+      }
+      
+      // Add footer with page numbers and brand colors
+      const totalPages = doc.internal.pages.length - 1;
+      for (let i = 1; i <= totalPages; i++) {
+        doc.setPage(i);
+        doc.setFontSize(10);
+        doc.setTextColor(brandSecondary[0], brandSecondary[1], brandSecondary[2]); // Brand secondary color
+        doc.text(`Page ${i} sur ${totalPages}`, pageWidth / 2, 290, { align: 'center' });
+        
+        // Add footer line
+        doc.setDrawColor(brandSecondary[0], brandSecondary[1], brandSecondary[2]);
+        doc.line(20, 285, 190, 285);
+        
+        // Add copyright text
+        doc.setFontSize(8);
+        doc.setTextColor(120, 120, 120);
+        doc.text('© AI Chat Models - Document généré automatiquement', pageWidth / 2, 295, { align: 'center' });
+      }
+      
+      // Save the PDF
+      const filename = `conversation_${this.currentConversationId || 'nouvelle'}_${date.replace(/\//g, '-')}.pdf`;
+      doc.save(filename);
+      
+      // Show success message
+      this.messageService.add({
+        severity: 'success',
+        summary: 'Succès',
+        detail: 'Le PDF a été téléchargé avec le logo et les couleurs améliorées'
+      });
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      this.messageService.add({
+        severity: 'error',
+        summary: 'Erreur',
+        detail: 'Échec de génération du PDF'
       });
     }
   }

@@ -1,5 +1,7 @@
 export const environment = {
   production: false,
   apiUrl: 'http://localhost:8000/api',
-  predictApi: 'http://127.0.0.1:5004/predict'
+  // Backend endpoints that proxy to the external services
+  fineTunedApi: 'http://localhost:8000/api/fine-tuned/chat',
+  llamaApi: 'http://localhost:8000/api/llama/chat'
 };
