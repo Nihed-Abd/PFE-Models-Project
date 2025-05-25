@@ -205,19 +205,33 @@
             [disabled]="isLoading"
             autoResize="true"
           ></textarea>
+          <!-- Display selected file preview if available -->
+          <div *ngIf="selectedFile && selectedModel?.value === 'llama'" class="absolute bottom-14 right-2 p-2 bg-blue-50 dark:bg-slate-600 rounded-lg shadow-md flex items-center gap-2 max-w-xs">
+            <i class="pi pi-file-pdf text-red-500"></i>
+            <div class="truncate text-sm">
+              <div class="font-medium">{{ selectedFile.name }}</div>
+              <div class="text-xs text-slate-500 dark:text-slate-300">{{ selectedFile.size | fileSize }}</div>
+            </div>
+            <button class="text-slate-400 hover:text-red-500" (click)="clearSelectedFile()">
+              <i class="pi pi-times"></i>
+            </button>
+          </div>
+          
           <div class="absolute bottom-2 right-2 flex items-center gap-2">
             <!-- File Attachment Button - Only for Ollama model -->
             <button
               *ngIf="selectedModel && selectedModel.value === 'llama'"
               type="button"
-              class="text-slate-500 hover:text-blue-500 focus:outline-none transition-colors duration-200"
-              [pTooltip]="'Joindre un fichier PDF (Ollama uniquement)'"
+              class="text-slate-500 hover:text-blue-500 focus:outline-none transition-colors duration-200 relative"
+              [ngClass]="{'text-blue-500': selectedFile}" 
+              [pTooltip]="selectedFile ? 'Fichier PDF sélectionné' : 'Joindre un fichier PDF (Ollama uniquement)'"
               tooltipPosition="top"
               [disabled]="isLoading"
               (click)="fileInput.click()"
             >
               <i class="pi pi-paperclip"></i>
-              <span class="ml-1 text-xs text-slate-400">PDF</span>
+              <span class="ml-1 text-xs" [ngClass]="{'text-blue-500': selectedFile, 'text-slate-400': !selectedFile}">PDF</span>
+              <div *ngIf="selectedFile" class="absolute -top-1 -right-1 w-2 h-2 bg-blue-500 rounded-full"></div>
               <input
                 #fileInput
                 type="file"
