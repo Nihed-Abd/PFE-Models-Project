@@ -893,6 +893,14 @@ export class NewChatroomComponent implements OnInit {
   private handleFileUploadWithOllama(question: string, file: File, headers: any): void {
     console.log(`Processing file upload with Ollama: ${file.name}, type: ${file.type}, size: ${file.size} bytes`);
     
+    // Add loading indicator specifically for file uploads
+    this.messageService.add({
+      severity: 'info',
+      summary: 'Traitement du fichier PDF',
+      detail: `Analyse du fichier "${file.name}" en cours...`,
+      life: 10000
+    });
+    
     // Check if we have a valid File object
     if (!file || !(file instanceof File)) {
       console.error('Invalid file object provided to handleFileUploadWithOllama');
@@ -900,77 +908,133 @@ export class NewChatroomComponent implements OnInit {
       return;
     }
     
-    // Create form data for file upload - this is critical to correctly send files
+    // Create a fresh FormData instance for file upload
     const formData = new FormData();
     
-    // Ensure we're appending the actual File object, not a string or filename
-    // This is the most important part for file uploads
-    formData.append('file', file, file.name);
-    formData.append('prompt', question);
-    formData.append('model', 'llama3.2');
+    // IMPORTANT: Start fresh with FormData
+    try {
+      // Debug log to see what file we're attempting to upload
+      console.log('DEBUG: File to upload', { 
+        name: file.name, 
+        type: file.type, 
+        size: file.size,
+        lastModified: file.lastModified
+      });
+      
+      // CRITICAL: Add the actual file object first
+      formData.append('file', file, file.name);
+      
+      // Add prompt parameter
+      formData.append('prompt', question);
+      
+      // Add model parameter
+      formData.append('model', 'llama3.2');
+      
+      // Debug: examine the FormData entries (this is just for debugging, doesn't show actual file contents)
+      console.log('DEBUG: FormData entries:');
+      for (const pair of (formData as any).entries()) {
+        console.log(`${pair[0]}: ${pair[0] === 'file' ? 'FILE OBJECT' : pair[1]}`);
+      }
+    } catch (err) {
+      const error = err as Error;
+      console.error('Error creating FormData:', error);
+      this.handleApiError(new Error(`Error preparing file upload: ${error.message || 'Unknown error'}`));
+      return;
+    }
     
-    // Log FormData for debugging (cannot directly log content, but can verify structure)
-    console.log('FormData created with entries:', {
-      fileName: file.name,
-      fileType: file.type,
-      fileSize: file.size,
-      prompt: question
-    });
-    
-    // Important: Don't set Content-Type header manually for file uploads
-    // Let the browser set the correct multipart/form-data with boundary
-    const uploadHeaders = {...headers};
-    delete uploadHeaders['Content-Type'];
+    // CRITICAL: For file uploads via FormData, we must NOT set Content-Type
+    // The browser needs to set it automatically with the correct boundary
+    const uploadHeaders = {
+      'Authorization': headers['Authorization'] // Copy the authorization from passed-in headers
+    };
+    // DO NOT set 'Content-Type' - the browser will set it properly for FormData
     
     // Use the unified Llama API endpoint
     const apiUrl = environment.llamaApi; // This should be /api/llama/chat
     
     console.log('Sending file to Ollama via unified endpoint:', apiUrl);
     
-    // Make the HTTP request with file upload - this sends the actual file binary
+    // Log for debugging
+    console.log('DEBUG: Request headers:', uploadHeaders);
+    
+    // Make the HTTP request with the FormData
+    // IMPORTANT: We're explicitly using FormData with the correct headers
     this.http.post(apiUrl, formData, { 
       headers: uploadHeaders,
-      reportProgress: true, // Enable progress reporting
-      observe: 'events' // To observe upload progress if needed
+      reportProgress: true,
+      withCredentials: false // Don't send cookies, just our Authorization header
     }).subscribe({
-      next: (event: any) => {
-        // Check if this is the final response
-        if (event.type === 4) { // HttpEventType.Response
-          const response = event.body;
-          console.log('Received Ollama file analysis response:', response);
+      next: (response: any) => {
+        console.log('Received Ollama file analysis response:', response);
+        
+        // Hide any previous info messages
+        this.messageService.clear();
+        
+        // Extract the response
+        const botResponse = response.response || 'No response received';
+        
+        // Log file info if returned
+        if (response.file) {
+          console.log('File processed:', response.file);
           
-          // Extract the response
-          const botResponse = response.response || 'No response received';
-          
-          // Log file info if returned
-          if (response.file) {
-            console.log('File processed:', response.file);
-          }
-          
-          // Create AI response object
-          const aiResponse: AIResponse = {
-            predicted_category: botResponse,
-            question: question
-          };
-          
-          // Add AI response to messages UI
-          this.addAIResponse(aiResponse);
-          
-          // Save the current chat state
-          setTimeout(() => {
-            if (this.currentConversationId) {
-              // If we have an existing conversation, add this message to it
-              this.addMessageToExistingConversation(question, botResponse);
-            } else {
-              // If this is a new conversation, save it
-              this.saveCurrentChat();
-            }
-          }, 500);
+          // Show a success notification
+          this.messageService.add({
+            severity: 'success',
+            summary: 'Fichier analysé',
+            detail: `${response.file.name} (${Math.round(response.file.size / 1024)} KB) a été traité avec succès`,
+            life: 3000
+          });
         }
+        
+        // Create AI response object
+        const aiResponse: AIResponse = {
+          predicted_category: botResponse,
+          question: question
+        };
+        
+        // Add AI response to messages UI
+        this.addAIResponse(aiResponse);
+        
+        // Save the current chat state
+        setTimeout(() => {
+          if (this.currentConversationId) {
+            // If we have an existing conversation, add this message to it
+            this.addMessageToExistingConversation(question, botResponse);
+          } else {
+            // If this is a new conversation, save it
+            this.saveCurrentChat();
+          }
+        }, 500);
       },
-      error: (error: any) => {
+      error: (err: any) => {
+        const error = err as Error;
         console.error('Error processing file with Ollama:', error);
         this.handleApiError(error);
+        
+        // Check if this is an authentication error
+        let errorMessage = error.message || 'Erreur inconnue';
+        let errorSummary = 'Erreur de traitement du fichier';
+        
+        // Special handling for authentication errors (401)
+        if (err.status === 401) {
+          errorSummary = 'Erreur d\'authentification';
+          errorMessage = 'Votre session a expiré. Veuillez vous reconnecter.';
+          
+          // Attempt to get a new token or redirect to login
+          setTimeout(() => {
+            // Clear token and redirect to login
+            localStorage.removeItem('token');
+            // This would ideally redirect to login
+          }, 2000);
+        }
+        
+        // Show a specific error for file processing
+        this.messageService.add({
+          severity: 'error',
+          summary: errorSummary,
+          detail: `Impossible d'analyser le fichier. ${errorMessage}`,
+          life: 5000
+        });
       }
     });
   }

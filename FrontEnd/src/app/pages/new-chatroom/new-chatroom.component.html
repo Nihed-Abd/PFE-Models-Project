@@ -206,19 +206,22 @@
             autoResize="true"
           ></textarea>
           <div class="absolute bottom-2 right-2 flex items-center gap-2">
-            <!-- File Attachment Button -->
+            <!-- File Attachment Button - Only for Ollama model -->
             <button
+              *ngIf="selectedModel && selectedModel.value === 'llama'"
               type="button"
               class="text-slate-500 hover:text-blue-500 focus:outline-none transition-colors duration-200"
-              [pTooltip]="'Attach File'"
+              [pTooltip]="'Joindre un fichier PDF (Ollama uniquement)'"
               tooltipPosition="top"
               [disabled]="isLoading"
               (click)="fileInput.click()"
             >
               <i class="pi pi-paperclip"></i>
+              <span class="ml-1 text-xs text-slate-400">PDF</span>
               <input
                 #fileInput
                 type="file"
+                accept=".pdf,.txt,.doc,.docx"
                 class="hidden"
                 (change)="handleFileSelected($event)"
               />
