@@ -24,6 +24,8 @@ import { InputSwitchModule } from 'primeng/inputswitch';
 import { AuthService } from '../../services/auth.service';
 import { ConversationService, Conversation, TicketChat } from '../../services/conversation.service';
 import { environment } from '../../../environments/environment';
+// Import FileSizePipe
+import { FileSizePipe } from '../../shared/pipes/file-size.pipe';
 // PDF generation imports
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
@@ -81,6 +83,8 @@ interface AIResponse {
     OverlayPanelModule,
     InputSwitchModule,
     ConfirmDialogModule,
+    // Add FileSizePipe for formatting file sizes
+    FileSizePipe,
   ],
   providers: [MessageService, ConfirmationService],
   animations: [
@@ -256,7 +260,7 @@ export class NewChatroomComponent implements OnInit {
   // Générer un avatar par défaut pour l'utilisateur
   private generateUserAvatar(username: string): string {
     // Implantation simple - retourner une image par défaut
-    return 'assets/user.jpg';
+    return 'assets/user.png';
   }
   
   // Auto-save when messages change
@@ -686,13 +690,23 @@ export class NewChatroomComponent implements OnInit {
 
   // Send message to AI and get response
   sendMessage(): void {
+    // Exit if no message or file
     if (!this.newMessage.trim() && !this.selectedFile) return;
     
     // Create user message
     const userQuestion = this.newMessage.trim();
+    
+    // Special handling for file uploads with Ollama
+    if (this.selectedFile && this.selectedModel.value === 'llama') {
+      console.log('File detected, using direct file upload to Ollama');
+      this.directFileUploadToOllama(userQuestion, this.selectedFile);
+      return;
+    }
+    
+    // Regular text message (no file)
     const userMessage: Message = {
       id: this.messages.length + 1,
-      sender: 'user', // Using lowercase for consistency
+      sender: 'user',
       content: userQuestion,
       timestamp: new Date().toISOString(),
       likes: 0,
@@ -751,9 +765,9 @@ export class NewChatroomComponent implements OnInit {
       'Authorization': `Bearer ${token}`
     };
     
-    // If we have a file selected and using Llama model, use the file upload approach
+    // If we have a file selected and using Llama model, use the direct file upload approach
     if (this.selectedFile && this.selectedModel.value === 'llama') {
-      this.handleFileUploadWithOllama(question, this.selectedFile, headers);
+      this.directFileUploadToOllama(question, this.selectedFile);
       return;
     }
     
@@ -889,154 +903,162 @@ export class NewChatroomComponent implements OnInit {
   
 
   
-  // Handle file upload with Ollama model using the new simplified API endpoint
-  private handleFileUploadWithOllama(question: string, file: File, headers: any): void {
-    console.log(`Processing file upload with Ollama: ${file.name}, type: ${file.type}, size: ${file.size} bytes`);
+  // Direct file upload to Ollama API using FormData - this is the main method for file uploads
+  private directFileUploadToOllama(question: string, file: File): void {
+    console.log(`===== DEBUGGING FILE UPLOAD =====`);
+    console.log(`File: ${file.name}, Size: ${file.size} bytes, Type: ${file.type}`);
     
-    // Add loading indicator specifically for file uploads
+    // 1. Show a loader to the user
     this.messageService.add({
       severity: 'info',
-      summary: 'Traitement du fichier PDF',
-      detail: `Analyse du fichier "${file.name}" en cours...`,
-      life: 10000
+      summary: 'Traitement en cours',
+      detail: `Analyse du fichier ${file.name} en cours...`,
+      life: 8000
     });
     
-    // Check if we have a valid File object
-    if (!file || !(file instanceof File)) {
-      console.error('Invalid file object provided to handleFileUploadWithOllama');
-      this.handleApiError(new Error('Invalid file object'));
-      return;
-    }
-    
-    // Create a fresh FormData instance for file upload
+    // 2. Create the form data exactly like in Postman
     const formData = new FormData();
     
-    // IMPORTANT: Start fresh with FormData
-    try {
-      // Debug log to see what file we're attempting to upload
-      console.log('DEBUG: File to upload', { 
-        name: file.name, 
-        type: file.type, 
-        size: file.size,
-        lastModified: file.lastModified
-      });
-      
-      // CRITICAL: Add the actual file object first
-      formData.append('file', file, file.name);
-      
-      // Add prompt parameter
-      formData.append('prompt', question);
-      
-      // Add model parameter
-      formData.append('model', 'llama3.2');
-      
-      // Debug: examine the FormData entries (this is just for debugging, doesn't show actual file contents)
-      console.log('DEBUG: FormData entries:');
-      for (const pair of (formData as any).entries()) {
-        console.log(`${pair[0]}: ${pair[0] === 'file' ? 'FILE OBJECT' : pair[1]}`);
+    // Clear any previous data
+    for (const pair of formData.entries()) {
+      formData.delete(pair[0]);
+    }
+    
+    // CRITICAL: Add the actual file blob first (in this exact order)
+    formData.append('file', file);
+    formData.append('prompt', question);
+    formData.append('model', 'llama3.2');
+    
+    // 3. Debug what we're sending
+    console.log('FormData contents:');
+    for (const pair of formData.entries()) {
+      if (pair[0] === 'file') {
+        console.log(`- ${pair[0]}: [File Object] ${(pair[1] as File).name}, ${(pair[1] as File).size} bytes`);
+      } else {
+        console.log(`- ${pair[0]}: ${pair[1]}`);
       }
-    } catch (err) {
-      const error = err as Error;
-      console.error('Error creating FormData:', error);
-      this.handleApiError(new Error(`Error preparing file upload: ${error.message || 'Unknown error'}`));
+    }
+    
+    // 4. Get the API URL from environment
+    const apiUrl = environment.llamaApi;
+    console.log('API URL:', apiUrl);
+    
+    // 5. Get authorization token - critical for authenticated requests
+    const token = localStorage.getItem('token');
+    if (!token) {
+      this.messageService.add({
+        severity: 'error',
+        summary: 'Erreur d\'authentification',
+        detail: 'Jeton d\'authentification manquant. Veuillez vous reconnecter.',
+        life: 5000
+      });
       return;
     }
     
-    // CRITICAL: For file uploads via FormData, we must NOT set Content-Type
-    // The browser needs to set it automatically with the correct boundary
-    const uploadHeaders = {
-      'Authorization': headers['Authorization'] // Copy the authorization from passed-in headers
+    // 6. Create headers exactly like Postman - DO NOT set Content-Type
+    // This is critical - the browser will automatically set the correct multipart boundary
+    const requestHeaders = {
+      'Authorization': `Bearer ${token}`
     };
-    // DO NOT set 'Content-Type' - the browser will set it properly for FormData
     
-    // Use the unified Llama API endpoint
-    const apiUrl = environment.llamaApi; // This should be /api/llama/chat
+    console.log('Request headers:', requestHeaders);
     
-    console.log('Sending file to Ollama via unified endpoint:', apiUrl);
+    // Add the user's message to the UI immediately
+    this.messages.push({
+      id: this.messages.length + 1,
+      sender: 'user',
+      content: question + ` [Fichier: ${file.name}]`,
+      timestamp: new Date().toLocaleTimeString(),
+      likes: 0,
+      dislikes: 0,
+      avatar: this.generateUserAvatar('User')
+    });
     
-    // Log for debugging
-    console.log('DEBUG: Request headers:', uploadHeaders);
+    // Scroll to the latest message
+    setTimeout(() => this.scrollToBottom(), 100);
     
-    // Make the HTTP request with the FormData
-    // IMPORTANT: We're explicitly using FormData with the correct headers
-    this.http.post(apiUrl, formData, { 
-      headers: uploadHeaders,
-      reportProgress: true,
-      withCredentials: false // Don't send cookies, just our Authorization header
-    }).subscribe({
-      next: (response: any) => {
-        console.log('Received Ollama file analysis response:', response);
+    // 7. Make HTTP POST request with FormData
+    // CRITICAL: We're using plain XMLHttpRequest for complete control
+    const xhr = new XMLHttpRequest();
+    
+    // Setup the XHR request
+    xhr.open('POST', apiUrl, true);
+    xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+    
+    // Handle response
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        // Success
+        const response = JSON.parse(xhr.responseText);
+        console.log('Success! Response:', response);
         
-        // Hide any previous info messages
+        // Clear loading message
         this.messageService.clear();
         
-        // Extract the response
-        const botResponse = response.response || 'No response received';
+        // Extract AI response
+        const aiResponseText = response.response || 'Aucune réponse reçue';
         
-        // Log file info if returned
-        if (response.file) {
-          console.log('File processed:', response.file);
-          
-          // Show a success notification
-          this.messageService.add({
-            severity: 'success',
-            summary: 'Fichier analysé',
-            detail: `${response.file.name} (${Math.round(response.file.size / 1024)} KB) a été traité avec succès`,
-            life: 3000
-          });
-        }
-        
-        // Create AI response object
+        // Create AI response message
         const aiResponse: AIResponse = {
-          predicted_category: botResponse,
+          predicted_category: aiResponseText,
           question: question
         };
         
-        // Add AI response to messages UI
+        // Add to messages
         this.addAIResponse(aiResponse);
         
-        // Save the current chat state
-        setTimeout(() => {
-          if (this.currentConversationId) {
-            // If we have an existing conversation, add this message to it
-            this.addMessageToExistingConversation(question, botResponse);
-          } else {
-            // If this is a new conversation, save it
-            this.saveCurrentChat();
-          }
-        }, 500);
-      },
-      error: (err: any) => {
-        const error = err as Error;
-        console.error('Error processing file with Ollama:', error);
-        this.handleApiError(error);
-        
-        // Check if this is an authentication error
-        let errorMessage = error.message || 'Erreur inconnue';
-        let errorSummary = 'Erreur de traitement du fichier';
-        
-        // Special handling for authentication errors (401)
-        if (err.status === 401) {
-          errorSummary = 'Erreur d\'authentification';
-          errorMessage = 'Votre session a expiré. Veuillez vous reconnecter.';
-          
-          // Attempt to get a new token or redirect to login
-          setTimeout(() => {
-            // Clear token and redirect to login
-            localStorage.removeItem('token');
-            // This would ideally redirect to login
-          }, 2000);
+        // Save conversation
+        if (this.currentConversationId) {
+          this.addMessageToExistingConversation(question, aiResponseText);
+        } else {
+          this.saveCurrentChat();
         }
         
-        // Show a specific error for file processing
+        // Reset file
+        this.clearSelectedFile();
+      } else {
+        // Error
+        console.error('XHR Error:', xhr.status, xhr.statusText, xhr.responseText);
         this.messageService.add({
           severity: 'error',
-          summary: errorSummary,
-          detail: `Impossible d'analyser le fichier. ${errorMessage}`,
+          summary: 'Erreur',
+          detail: `Erreur lors du traitement du fichier: ${xhr.statusText || 'Erreur inconnue'}`,
           life: 5000
         });
+        
+        try {
+          // Try to parse error response
+          const errorResponse = JSON.parse(xhr.responseText);
+          this.handleApiError(new Error(errorResponse.error || 'Unknown error'));
+        } catch (e) {
+          this.handleApiError(new Error(`${xhr.status}: ${xhr.statusText || 'Unknown error'}`));
+        }
       }
-    });
+      
+      // Always end loading state
+      this.isLoading = false;
+    };
+    
+    // Handle network errors
+    xhr.onerror = () => {
+      console.error('Network error during file upload');
+      this.messageService.add({
+        severity: 'error',
+        summary: 'Erreur réseau',
+        detail: 'Impossible de se connecter au serveur. Vérifiez votre connexion.',
+        life: 5000
+      });
+      this.isLoading = false;
+    };
+    
+    // Set loading state
+    this.isLoading = true;
+    
+    // Send the FormData
+    xhr.send(formData);
+    
+    // Log what we sent
+    console.log('XHR request sent with FormData');
   }
   
   // Add AI response to messages - NOTE: This method should NOT be duplicated!
@@ -1155,6 +1177,16 @@ export class NewChatroomComponent implements OnInit {
     this.sendMessage();
   }
 
+  // Clear the selected file
+  clearSelectedFile(): void {
+    this.selectedFile = null;
+    // Clear file input if we can access it
+    const fileInput = document.querySelector('input[type=file]') as HTMLInputElement;
+    if (fileInput) {
+      fileInput.value = '';
+    }
+  }
+
   // Handle file selection
   handleFileSelected(event: any): void {
     const files = event.target.files;
@@ -1172,8 +1204,8 @@ export class NewChatroomComponent implements OnInit {
         if (!validTypes.includes(this.selectedFile.type)) {
           this.messageService.add({
             severity: 'warn',
-            summary: 'File Type Not Supported',
-            detail: 'Please select a PDF, TXT, DOC or DOCX file.'
+            summary: 'Type de fichier non supporté',
+            detail: 'Veuillez sélectionner un fichier PDF, TXT, DOC ou DOCX.'
           });
           this.selectedFile = null;
           if (event.target) event.target.value = '';
@@ -1181,8 +1213,8 @@ export class NewChatroomComponent implements OnInit {
         } else if (this.selectedFile.size > maxSize) {
           this.messageService.add({
             severity: 'warn',
-            summary: 'File Too Large',
-            detail: 'File size must be less than 10MB.'
+            summary: 'Fichier trop volumineux',
+            detail: 'La taille du fichier doit être inférieure à 10 Mo.'
           });
           this.selectedFile = null;
           if (event.target) event.target.value = '';
@@ -1190,13 +1222,13 @@ export class NewChatroomComponent implements OnInit {
         }
         
         // Add file name to message input as a prompt suggestion
-        this.newMessage = this.newMessage || `Analyse ce fichier: ${this.selectedFile.name}`;
+        this.newMessage = this.newMessage || `Analyse ce fichier PDF et résume son contenu.`;
         
         // Show success notification
         this.messageService.add({
           severity: 'success',
-          summary: 'File Ready',
-          detail: `${this.selectedFile.name} ready to be analyzed. Click Send to process.`
+          summary: 'Fichier prêt',
+          detail: `${this.selectedFile.name} est prêt à être analysé.`
         });
       }
       
