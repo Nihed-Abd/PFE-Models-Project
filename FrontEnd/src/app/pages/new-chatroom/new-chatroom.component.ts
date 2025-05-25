@@ -795,7 +795,8 @@ export class NewChatroomComponent implements OnInit {
       // Llama model using backend API
       const apiUrl = environment.llamaApi;
       const requestData = {
-        prompt: question
+        prompt: question,
+        model: 'llama3.2' // Optional, specifying model explicitly
       };
       
       console.log('Sending request to Llama model:', apiUrl, requestData);

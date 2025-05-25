@@ -9,6 +9,7 @@ use App\Models\File;
 use App\Models\Conversation;
 use App\Models\Ticketschat;
 use App\Services\LlamaService;
+use Illuminate\Support\Facades\Log;
 
 class LlamaController extends Controller
 {
@@ -136,72 +137,131 @@ class LlamaController extends Controller
         
         return $title;
     }
-    // 1. Envoyer une question à LLaMA
+    // 1. Envoyer une question à Ollama (LLaMA)
     public function handle(Request $request, LlamaService $llama)
     {
-        $question = $request->input('question');
+        $request->validate([
+            'prompt' => 'required|string',
+            'model' => 'nullable|string',
+        ]);
 
-        // Envoyer la question avec contexte (texte du fichier)
-        $response = $llama->ask($question);
+        // Get user info
+        $user = Auth::user();
+        if (!$user) {
+            return response()->json(['error' => 'User not authenticated'], 401);
+        }
 
-        // Enregistrer la conversation
+        // Extract data from request
+        $question = $request->input('prompt');
+        $modelOverride = $request->input('model');
+
+        // Log the request for debugging
+        Log::info("Ollama request received from user ID: {$user->id}, question: {$question}");
+
+        // Call the Ollama service
+        $response = $llama->ask($question, '', $modelOverride);
+
+        // Generate a conversation title from the first question
+        $title = null;
+        if (strlen($question) > 0) {
+            $title = $this->generateTitle($question);
+        }
+        
+        // Save conversation to database
         $conversation = Conversation::create([
-            'user_id' => Auth::id(),
+            'user_id' => $user->id,
             'message_user' => $question,
             'message_bot' => $response,
+            'model_type' => 'llama',
+            'title' => $title,
+            'is_saved' => false, // Default to not saved
             'timestamp' => now(),
         ]);
 
+        // Return formatted response to match expected frontend format
         return response()->json([
             'response' => $response,
             'conversation_id' => $conversation->id,
+            'title' => $title,
         ]);
     }
 
-    // 2. Upload de fichier
+    // 2. Upload de fichier pour analyse avec Ollama
     public function upload(Request $request, LlamaService $llama)
     {
         $request->validate([
             'file' => 'required|file|mimes:pdf,txt,doc,docx|max:10240',
-            'question' => 'required|string',
+            'prompt' => 'required|string', // Changed from 'question' to 'prompt' to match frontend naming
+            'model' => 'nullable|string',
         ]);
+        
+        // Verify user authentication
+        $user = Auth::user();
+        if (!$user) {
+            return response()->json(['error' => 'User not authenticated'], 401);
+        }
 
-        // 1. Stockage du fichier
-        $uploadedFile = $request->file('file');
-        $path = $uploadedFile->store('files');
+        try {
+            // 1. Store the uploaded file
+            $uploadedFile = $request->file('file');
+            $originalFilename = $uploadedFile->getClientOriginalName();
+            $path = $uploadedFile->store('files');
 
-        $text = $this->extractTextFromFile($uploadedFile);
+            // Extract text from the file
+            $text = $this->extractTextFromFile($uploadedFile);
+            
+            // Log file upload for debugging
+            Log::info("File uploaded by user ID: {$user->id}, filename: {$originalFilename}, size: {$uploadedFile->getSize()} bytes");
 
-        $storedFile = File::create([
-            'user_id' => Auth::id(),
-            'file_path' => $path,
-            'file_type' => $uploadedFile->getClientOriginalExtension(),
-            'content_text' => $text,
-        ]);
+            // Save file record in database
+            $storedFile = File::create([
+                'user_id' => $user->id,
+                'file_path' => $path,
+                'file_type' => $uploadedFile->getClientOriginalExtension(),
+                'file_name' => $originalFilename,
+                'content_text' => $text,
+            ]);
 
-        // 2. Préparation du contexte
-        $question = $request->input('question');
-        $context = $storedFile->content_text;
+            // 2. Prepare the context and prompt
+            $question = $request->input('prompt');
+            $context = $storedFile->content_text;
+            $modelOverride = $request->input('model');
+            
+            // 3. Process with Ollama
+            $response = $llama->ask($question, $context, $modelOverride);
 
-        // 3. Appel à LLaMA
-        $response = $llama->ask($question, $context);
+            // Generate title from question
+            $title = $this->generateTitle($question);
 
-        // 4. Enregistrement de la conversation
-        Conversation::create([
-            'user_id' => Auth::id(),
-            'file_id' => $storedFile->id,
-            'message_user' => $question,
-            'message_bot' => $response,
-            'timestamp' => now(),
-        ]);
+            // 4. Save the conversation
+            $conversation = Conversation::create([
+                'user_id' => $user->id,
+                'file_id' => $storedFile->id,
+                'message_user' => $question,
+                'message_bot' => $response,
+                'model_type' => 'llama',
+                'title' => $title,
+                'is_saved' => false, // Default to not saved
+                'timestamp' => now(),
+            ]);
 
-        return response()->json([
-            'file' => $storedFile,
-            'conversation' => [
-                'question' => $question,
-                'reponse' => $response,
-            ],
-        ]);
+            // Return response in expected format for frontend
+            return response()->json([
+                'response' => $response,
+                'conversation_id' => $conversation->id,
+                'title' => $title,
+                'file' => [
+                    'id' => $storedFile->id,
+                    'name' => $originalFilename,
+                    'type' => $uploadedFile->getClientOriginalExtension(),
+                    'size' => $uploadedFile->getSize(),
+                ],
+            ]);
+            
+        } catch (\Exception $e) {
+            Log::error("File upload error: " . $e->getMessage());
+            return response()->json(['error' => 'Failed to process file: ' . $e->getMessage()], 500);
+        }
     }
     // 3. Historique des conversations
     public function history()
