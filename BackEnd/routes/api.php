@@ -32,10 +32,8 @@ Route::middleware('auth:api')->group(function () {
     Route::apiResource('/users', UserController::class);
     Route::get('ticketchat/{id}', [TicketChatController::class, 'show']);
     Route::get('ticketchat/evaluations/{userId}', [TicketChatController::class, 'countEvaluationsByConversation']);
-//llama3.2 model - For backward compatibility
-    Route::post('/llama/chat', [LlamaController::class, 'handle']);
-    Route::post('/upload-file', [LlamaController::class, 'upload']);
-    Route::get('/history', [LlamaController::class, 'history']);
+    // Ollama model API - Simplified version
+    Route::post('/llama/chat', [LlamaController::class, 'chat']);
     
     // Fine-tuned model
     Route::post('/fine-tuned/chat', [FineTunedController::class, 'chat']);

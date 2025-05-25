@@ -741,9 +741,24 @@ export class NewChatroomComponent implements OnInit {
     
     // Get authentication token
     const token = localStorage.getItem('token');
+    if (!token) {
+      this.handleApiError(new Error('Authentication token not found. Please log in again.'));
+      return;
+    }
     
     // Prepare headers with authentication token
     const headers = {
+      'Authorization': `Bearer ${token}`
+    };
+    
+    // If we have a file selected and using Llama model, use the file upload approach
+    if (this.selectedFile && this.selectedModel.value === 'llama') {
+      this.handleFileUploadWithOllama(question, this.selectedFile, headers);
+      return;
+    }
+    
+    // For normal text queries without files
+    const jsonHeaders = {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${token}`
     };
@@ -759,7 +774,7 @@ export class NewChatroomComponent implements OnInit {
       console.log('Sending request to Fine-tuned model:', apiUrl, requestData);
       
       // Make the HTTP request to the Fine-tuned API with auth headers
-      this.http.post(apiUrl, requestData, { headers }).subscribe({
+      this.http.post(apiUrl, requestData, { headers: jsonHeaders }).subscribe({
         next: (response: any) => {
           console.log('Received Fine-tuned model response:', response);
           
@@ -794,15 +809,17 @@ export class NewChatroomComponent implements OnInit {
     } else if (this.selectedModel.value === 'llama') {
       // Llama model using backend API
       const apiUrl = environment.llamaApi;
+      
+      // For text-only requests without files, use JSON format
       const requestData = {
         prompt: question,
         model: 'llama3.2' // Optional, specifying model explicitly
       };
       
-      console.log('Sending request to Llama model:', apiUrl, requestData);
+      console.log('Sending text-only request to Llama model:', apiUrl, requestData);
       
-      // Make the HTTP request to the Llama API with auth headers
-      this.http.post(apiUrl, requestData, { headers }).subscribe({
+      // Make the HTTP request to the Llama API with auth headers and JSON content
+      this.http.post(apiUrl, requestData, { headers: jsonHeaders }).subscribe({
         next: (response: any) => {
           console.log('Received Llama model response:', response);
           
@@ -867,6 +884,94 @@ export class NewChatroomComponent implements OnInit {
       severity: 'error',
       summary: 'AI Error',
       detail: 'Failed to get AI response: ' + (error.message || 'Unknown error')
+    });
+  }
+  
+
+  
+  // Handle file upload with Ollama model using the new simplified API endpoint
+  private handleFileUploadWithOllama(question: string, file: File, headers: any): void {
+    console.log(`Processing file upload with Ollama: ${file.name}, type: ${file.type}, size: ${file.size} bytes`);
+    
+    // Check if we have a valid File object
+    if (!file || !(file instanceof File)) {
+      console.error('Invalid file object provided to handleFileUploadWithOllama');
+      this.handleApiError(new Error('Invalid file object'));
+      return;
+    }
+    
+    // Create form data for file upload - this is critical to correctly send files
+    const formData = new FormData();
+    
+    // Ensure we're appending the actual File object, not a string or filename
+    // This is the most important part for file uploads
+    formData.append('file', file, file.name);
+    formData.append('prompt', question);
+    formData.append('model', 'llama3.2');
+    
+    // Log FormData for debugging (cannot directly log content, but can verify structure)
+    console.log('FormData created with entries:', {
+      fileName: file.name,
+      fileType: file.type,
+      fileSize: file.size,
+      prompt: question
+    });
+    
+    // Important: Don't set Content-Type header manually for file uploads
+    // Let the browser set the correct multipart/form-data with boundary
+    const uploadHeaders = {...headers};
+    delete uploadHeaders['Content-Type'];
+    
+    // Use the unified Llama API endpoint
+    const apiUrl = environment.llamaApi; // This should be /api/llama/chat
+    
+    console.log('Sending file to Ollama via unified endpoint:', apiUrl);
+    
+    // Make the HTTP request with file upload - this sends the actual file binary
+    this.http.post(apiUrl, formData, { 
+      headers: uploadHeaders,
+      reportProgress: true, // Enable progress reporting
+      observe: 'events' // To observe upload progress if needed
+    }).subscribe({
+      next: (event: any) => {
+        // Check if this is the final response
+        if (event.type === 4) { // HttpEventType.Response
+          const response = event.body;
+          console.log('Received Ollama file analysis response:', response);
+          
+          // Extract the response
+          const botResponse = response.response || 'No response received';
+          
+          // Log file info if returned
+          if (response.file) {
+            console.log('File processed:', response.file);
+          }
+          
+          // Create AI response object
+          const aiResponse: AIResponse = {
+            predicted_category: botResponse,
+            question: question
+          };
+          
+          // Add AI response to messages UI
+          this.addAIResponse(aiResponse);
+          
+          // Save the current chat state
+          setTimeout(() => {
+            if (this.currentConversationId) {
+              // If we have an existing conversation, add this message to it
+              this.addMessageToExistingConversation(question, botResponse);
+            } else {
+              // If this is a new conversation, save it
+              this.saveCurrentChat();
+            }
+          }, 500);
+        }
+      },
+      error: (error: any) => {
+        console.error('Error processing file with Ollama:', error);
+        this.handleApiError(error);
+      }
     });
   }
   
@@ -991,9 +1096,44 @@ export class NewChatroomComponent implements OnInit {
     const files = event.target.files;
     if (files && files.length > 0) {
       this.selectedFile = files[0];
-      // Add file name to message input
+      
       if (this.selectedFile) {
-        this.newMessage += `\n[File: ${this.selectedFile.name}]`;
+        // Log selected file info
+        console.log(`File selected: ${this.selectedFile.name}, type: ${this.selectedFile.type}, size: ${this.selectedFile.size} bytes`);
+        
+        // Validate file type and size
+        const validTypes = ['application/pdf', 'text/plain', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+        const maxSize = 10 * 1024 * 1024; // 10MB
+        
+        if (!validTypes.includes(this.selectedFile.type)) {
+          this.messageService.add({
+            severity: 'warn',
+            summary: 'File Type Not Supported',
+            detail: 'Please select a PDF, TXT, DOC or DOCX file.'
+          });
+          this.selectedFile = null;
+          if (event.target) event.target.value = '';
+          return;
+        } else if (this.selectedFile.size > maxSize) {
+          this.messageService.add({
+            severity: 'warn',
+            summary: 'File Too Large',
+            detail: 'File size must be less than 10MB.'
+          });
+          this.selectedFile = null;
+          if (event.target) event.target.value = '';
+          return;
+        }
+        
+        // Add file name to message input as a prompt suggestion
+        this.newMessage = this.newMessage || `Analyse ce fichier: ${this.selectedFile.name}`;
+        
+        // Show success notification
+        this.messageService.add({
+          severity: 'success',
+          summary: 'File Ready',
+          detail: `${this.selectedFile.name} ready to be analyzed. Click Send to process.`
+        });
       }
       
       // Focus back on the input
