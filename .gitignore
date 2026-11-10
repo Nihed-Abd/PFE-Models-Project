@@ -1,7 +1,6 @@
 # General
 .DS_Store
 .idea/
-.vscode/
 *.log
 *.swp
 *.bak
@@ -17,8 +16,6 @@ yarn-error.log
 .pnpm-debug.log
 dist/
 coverage/
-.env
-.env.local
 .env.development.local
 .env.test.local
 .env.production.local
@@ -29,7 +26,6 @@ coverage/
 /public/hot/
 /public/storage/
 /storage/*.key
-.env
 .env.backup
 .phpunit.result.cache
 Homestead.json
@@ -61,7 +57,6 @@ wheels/
 *.egg
 venv/
 ENV/
-.env
 .venv
 .ipynb_checkpoints
 *.pt
@@ -93,6 +88,4 @@ Thumbs.db
 
 
 AiModel/checkpoint-100/
-temp_auto_push.bat
-temp_interactive_push.bat
-branch_structure.json
+config.bat
