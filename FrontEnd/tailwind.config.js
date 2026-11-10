@@ -1,8 +1,5 @@
 /** @type {import('tailwindcss').Config} */
 import PrimeUI from 'tailwindcss-primeui';
-import { createRequire } from 'module';
-
-const require = createRequire(import.meta.url);
 
 export default {
     darkMode: ['selector', '[class="app-dark"]'],
@@ -18,4 +15,3 @@ export default {
         }
     }
 };
-
